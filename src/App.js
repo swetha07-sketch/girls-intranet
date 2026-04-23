@@ -7,7 +7,7 @@ const supabase = createClient(
 );
 
 const SHARED_PASSWORD = process.env.REACT_APP_PASSWORD || "girlsclub2024";
-const MEMBERS = ["Aaliyah", "Brianna", "Destiny", "Faith", "Grace", "Hailey", "Isabella", "Jasmine"];
+const MEMBERS = ["Swetha", "Meghavi", "Prakruti", "Farida", "Pulak"];
 // ↑ Replace these with your actual friend group names!
 
 const timeAgo = (ts) => {
@@ -305,7 +305,7 @@ export default function App() {
   useEffect(() => {
     if (showSheet && sheetMode === "camera") setTimeout(() => startCamera(), 300);
     if (!showSheet) stopStream();
-  }, [showSheet, sheetMode]);
+  }, [showSheet, sheetMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const flipCamera = () => {
     const next = facingMode === "user" ? "environment" : "user";
