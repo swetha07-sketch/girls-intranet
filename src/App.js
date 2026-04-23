@@ -7,7 +7,7 @@ const supabase = createClient(
 );
 
 const SHARED_PASSWORD = process.env.REACT_APP_PASSWORD || "girlsclub2024";
-const MEMBERS = ["Aaliyah", "Brianna", "Destiny", "Faith", "Grace", "Hailey", "Isabella", "Jasmine"];
+const MEMBERS = ["Farida", "Meghavi", "Prakruti", "Pulak", "Swetha"];
 // ↑ Replace these with your actual friend group names!
 
 // ── Get the most recent Wednesday at midnight ──────────────────────────────
