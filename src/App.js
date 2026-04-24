@@ -10,11 +10,10 @@ const SHARED_PASSWORD = process.env.REACT_APP_PASSWORD || "girlsclub2024";
 const MEMBERS = ["Farida", "Meghavi", "Prakruti", "Pulak", "Swetha"];
 // ↑ Replace these with your actual friend group names!
 
-// ── Get the most recent Wednesday at midnight ──────────────────────────────
 const getLastWednesday = () => {
   const now = new Date();
-  const day = now.getDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
-  const daysBack = day >= 3 ? day - 3 : day + 4; // days since last Wednesday
+  const day = now.getDay();
+  const daysBack = day >= 3 ? day - 3 : day + 4;
   const lastWed = new Date(now);
   lastWed.setDate(now.getDate() - daysBack);
   lastWed.setHours(0, 0, 0, 0);
@@ -32,7 +31,6 @@ const timeAgo = (ts) => {
 };
 
 const expiresIn = (ts) => {
-  // expires next Wednesday
   const posted = new Date(ts);
   const nextWed = new Date(posted);
   const day = posted.getDay();
@@ -95,12 +93,9 @@ styleTag.textContent = `
 
   /* Feed */
   .feed { display: flex; flex-direction: column; gap: 1.1rem; }
-
-  /* Feed card */
   .feed-card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; overflow: hidden; box-shadow: var(--shadow); animation: cardIn 0.35s ease; transition: transform 0.15s; }
   .feed-card:hover { transform: translateY(-2px); }
   @keyframes cardIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-
   .card-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.3rem 0.6rem; }
   .card-author { display: flex; align-items: center; gap: 0.65rem; }
   .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--blush); display: flex; align-items: center; justify-content: center; font-size: 0.9rem; font-weight: 600; color: var(--rose-dark); flex-shrink: 0; }
@@ -111,11 +106,8 @@ styleTag.textContent = `
   .badge-win { background: #fef3d7; color: #a07520; }
   .badge-thought { background: #ede9e5; color: var(--taupe); }
   .badge-video { background: #fce8e5; color: var(--rose-dark); }
-
-  /* Delete button */
   .delete-btn { background: none; border: none; cursor: pointer; color: var(--taupe); font-size: 0.9rem; padding: 0.25rem 0.4rem; border-radius: 8px; transition: all 0.15s; line-height: 1; }
   .delete-btn:hover { color: #e53e3e; background: #fff0f0; }
-
   .card-content { padding: 0.5rem 1.3rem 1.1rem; font-size: 0.97rem; line-height: 1.65; color: var(--text); }
   .card-video { width: 100%; display: block; max-height: 400px; object-fit: cover; background: #1a0f0a; }
   .card-video-footer { padding: 0.6rem 1.3rem 1rem; display: flex; justify-content: space-between; align-items: center; }
@@ -127,12 +119,10 @@ styleTag.textContent = `
   .progress-bar { height: 100%; background: var(--rose); border-radius: 999px; transition: width 0.2s; }
   .progress-text { font-size: 0.82rem; color: var(--taupe); white-space: nowrap; }
 
-  /* Modal backdrop */
+  /* Modal */
   .modal-backdrop { position: fixed; inset: 0; background: rgba(46,30,23,0.45); backdrop-filter: blur(5px); z-index: 300; display: flex; align-items: flex-end; justify-content: center; padding: 0; animation: fadeIn 0.2s ease; }
   @media (min-width: 540px) { .modal-backdrop { align-items: center; padding: 1.5rem; } }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-  /* Sheet */
   .sheet { background: var(--card); border-radius: 24px 24px 0 0; padding: 1.5rem 1.5rem 2.5rem; width: 100%; max-width: 520px; box-shadow: var(--shadow-lg); animation: slideUp 0.28s ease; max-height: 92vh; overflow-y: auto; }
   @media (min-width: 540px) { .sheet { border-radius: 24px; padding: 2rem; } }
   @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
@@ -140,23 +130,24 @@ styleTag.textContent = `
   .sheet-title { font-family: 'Playfair Display', serif; font-size: 1.35rem; color: var(--brown); margin-bottom: 1.3rem; display: flex; justify-content: space-between; align-items: center; }
   .sheet-close { background: none; border: none; font-size: 1.2rem; color: var(--taupe); cursor: pointer; }
 
-  /* Confirm dialog (inside modal) */
+  /* Confirm */
   .confirm-dialog { text-align: center; padding: 0.5rem 0; }
   .confirm-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
   .confirm-msg { font-size: 1rem; color: var(--brown); line-height: 1.5; margin-bottom: 0.4rem; }
   .confirm-sub { font-size: 0.85rem; color: var(--taupe); margin-bottom: 1.5rem; }
   .confirm-actions { display: flex; gap: 0.75rem; }
-  .btn-danger { flex: 2; padding: 0.85rem; background: #e53e3e; color: white; border: none; border-radius: 12px; font-family: 'DM Sans', sans-serif; font-size: 0.95rem; font-weight: 500; cursor: pointer; transition: background 0.15s; }
+  .btn-danger { flex: 2; padding: 0.85rem; background: #e53e3e; color: white; border: none; border-radius: 12px; font-family: 'DM Sans', sans-serif; font-size: 0.95rem; font-weight: 500; cursor: pointer; }
   .btn-danger:hover { background: #c53030; }
 
   /* Mode options */
-  .mode-options { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; margin-bottom: 0.5rem; }
-  .mode-btn { padding: 1.1rem 0.5rem; border-radius: 16px; border: 1.5px solid var(--border); background: var(--warm-white); cursor: pointer; text-align: center; transition: all 0.18s; }
+  .mode-options { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.5rem; }
+  .mode-btn { padding: 1.3rem 0.5rem; border-radius: 16px; border: 1.5px solid var(--border); background: var(--warm-white); cursor: pointer; text-align: center; transition: all 0.18s; }
   .mode-btn:hover { border-color: var(--rose); background: #fdf0ec; }
-  .mode-btn .mode-icon { font-size: 1.6rem; margin-bottom: 0.3rem; }
-  .mode-btn .mode-label { font-size: 0.8rem; font-weight: 500; color: var(--brown); }
+  .mode-btn .mode-icon { font-size: 1.8rem; margin-bottom: 0.4rem; }
+  .mode-btn .mode-label { font-size: 0.85rem; font-weight: 500; color: var(--brown); }
+  .mode-btn .mode-sub { font-size: 0.75rem; color: var(--taupe); margin-top: 0.2rem; }
 
-  /* Form elements */
+  /* Form */
   .form-label { font-size: 0.8rem; font-weight: 500; color: var(--taupe); margin-bottom: 0.35rem; display: block; text-transform: uppercase; letter-spacing: 0.05em; }
   .form-group { margin-bottom: 1rem; }
   .select-field { width: 100%; padding: 0.8rem 1rem; border: 1.5px solid var(--border); border-radius: 12px; font-family: 'DM Sans', sans-serif; font-size: 0.95rem; background: var(--warm-white); color: var(--text); outline: none; cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239e8c7e' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 1rem center; }
@@ -173,29 +164,12 @@ styleTag.textContent = `
   .btn-submit:disabled { opacity: 0.55; cursor: not-allowed; }
 
   /* Upload zone */
-  .upload-zone { border: 2px dashed var(--border); border-radius: 16px; padding: 2rem; text-align: center; cursor: pointer; transition: all 0.2s; background: var(--warm-white); margin-bottom: 0.5rem; }
+  .upload-zone { border: 2px dashed var(--border); border-radius: 16px; padding: 2.5rem 2rem; text-align: center; cursor: pointer; transition: all 0.2s; background: var(--warm-white); margin-bottom: 0.5rem; }
   .upload-zone:hover, .upload-zone.dragging { border-color: var(--rose); background: #fdf0ec; }
-  .upload-zone-icon { font-size: 2rem; margin-bottom: 0.5rem; }
-  .upload-zone-text { color: var(--taupe); font-size: 0.88rem; }
+  .upload-zone-icon { font-size: 2.2rem; margin-bottom: 0.6rem; }
+  .upload-zone-text { color: var(--taupe); font-size: 0.9rem; }
   .upload-zone-text strong { color: var(--rose); }
   .hidden-input { display: none; }
-
-  /* Camera */
-  .camera-wrap { border-radius: 16px; overflow: hidden; background: #1a0f0a; margin-bottom: 0.75rem; }
-  .camera-preview { width: 100%; max-height: 300px; object-fit: cover; display: block; }
-  .camera-controls { display: flex; align-items: center; justify-content: center; gap: 1rem; padding: 1rem; background: rgba(26,15,10,0.85); }
-  .rec-btn { width: 58px; height: 58px; border-radius: 50%; border: 3px solid white; background: var(--rose); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; transition: all 0.2s; }
-  .rec-btn.recording { background: #e53e3e; animation: pulse 1.2s infinite; }
-  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(229,62,62,0.5); } 50% { box-shadow: 0 0 0 10px rgba(229,62,62,0); } }
-  .flip-btn { background: rgba(255,255,255,0.15); border: none; color: white; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; }
-  .rec-timer { color: white; font-size: 0.85rem; font-weight: 500; min-width: 40px; text-align: center; }
-  .rec-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #e53e3e; margin-right: 4px; animation: pulse 1s infinite; }
-  .camera-hint { color: rgba(255,255,255,0.55); font-size: 0.76rem; text-align: center; padding: 0.4rem 1rem 0.75rem; }
-  .camera-error { padding: 2rem; text-align: center; color: rgba(255,255,255,0.75); font-size: 0.88rem; line-height: 1.6; }
-
-  /* Recorded preview */
-  .recorded-preview { border-radius: 14px; overflow: hidden; margin-bottom: 0.75rem; }
-  .recorded-preview video { width: 100%; display: block; max-height: 240px; object-fit: cover; }
 
   /* Empty state */
   .empty-state { text-align: center; padding: 4rem 1rem; color: var(--taupe); }
@@ -219,37 +193,15 @@ export default function App() {
   const [feed, setFeed] = useState([]);
   const [loadingFeed, setLoadingFeed] = useState(true);
   const [uploadProgress, setUploadProgress] = useState(null);
-
-  // sheet
   const [showSheet, setShowSheet] = useState(false);
   const [sheetMode, setSheetMode] = useState(null);
-
-  // delete confirm
-  const [deleteTarget, setDeleteTarget] = useState(null); // { id, itemType, fileName? }
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
-
-  // post form
   const [form, setForm] = useState({ name: "", content: "", type: "win" });
   const [submitting, setSubmitting] = useState(false);
-
-  // video
   const [uploaderName, setUploaderName] = useState("");
-  const [recordedBlob, setRecordedBlob] = useState(null);
-  const [recordedUrl, setRecordedUrl] = useState(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recSeconds, setRecSeconds] = useState(0);
-  const [facingMode, setFacingMode] = useState("user");
-  const [cameraError, setCameraError] = useState("");
   const [dragging, setDragging] = useState(false);
-
-  const videoRef = useRef(null);
-  const mediaRecorderRef = useRef(null);
-  const streamRef = useRef(null);
-  const chunksRef = useRef([]);
-  const timerRef = useRef(null);
   const fileInputRef = useRef();
-
-  // login
   const [pwInput, setPwInput] = useState("");
   const [pwError, setPwError] = useState("");
 
@@ -260,16 +212,12 @@ export default function App() {
 
   useEffect(() => { if (authed) loadFeed(); }, [authed]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Load feed — only show items posted since last Wednesday ───────────────
   const loadFeed = async () => {
     setLoadingFeed(true);
     const lastWednesday = getLastWednesday().toISOString();
-
     const { data: posts } = await supabase
       .from("posts").select("*").gte("created_at", lastWednesday).order("created_at", { ascending: false });
-
     const { data: files } = await supabase.storage.from("videos").list("", { limit: 100, sortBy: { column: "created_at", order: "desc" } });
-
     const freshVideos = (files || [])
       .filter(f => f.name !== ".emptyFolderPlaceholder" && new Date(f.created_at) >= new Date(lastWednesday))
       .map(f => ({
@@ -279,28 +227,22 @@ export default function App() {
         url: supabase.storage.from("videos").getPublicUrl(f.name).data.publicUrl,
         fileName: f.name,
       }));
-
     const postItems = (posts || []).map(p => ({ ...p, itemType: "post" }));
     const merged = [...postItems, ...freshVideos].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     setFeed(merged);
     setLoadingFeed(false);
   };
 
-  // ── Sheet ─────────────────────────────────────────────────────────────────
   const openSheet = (mode = null) => { setSheetMode(mode); setShowSheet(true); };
   const closeSheet = () => {
     setShowSheet(false);
     setTimeout(() => {
       setSheetMode(null);
       setForm({ name: "", content: "", type: "win" });
-      setRecordedBlob(null); setRecordedUrl(null);
-      setUploaderName(""); setCameraError("");
-      stopStream(); setIsRecording(false);
-      clearInterval(timerRef.current); setRecSeconds(0);
+      setUploaderName("");
     }, 300);
   };
 
-  // ── Post submit ───────────────────────────────────────────────────────────
   const handlePostSubmit = async () => {
     if (!form.name || !form.content.trim()) return;
     setSubmitting(true);
@@ -310,9 +252,7 @@ export default function App() {
     loadFeed();
   };
 
-  // ── Delete ────────────────────────────────────────────────────────────────
   const confirmDelete = (item) => setDeleteTarget(item);
-
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
@@ -326,56 +266,6 @@ export default function App() {
     loadFeed();
   };
 
-  // ── Camera ────────────────────────────────────────────────────────────────
-  const startCamera = async (facing = facingMode) => {
-    setCameraError("");
-    try {
-      if (streamRef.current) stopStream();
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing }, audio: true });
-      streamRef.current = stream;
-      if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.play(); }
-    } catch {
-      setCameraError("Couldn't access camera 📷 Please allow camera & microphone permissions in your browser settings.");
-    }
-  };
-
-  const stopStream = () => {
-    if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null; }
-  };
-
-  useEffect(() => {
-    if (showSheet && sheetMode === "camera") setTimeout(() => startCamera(), 300);
-    if (!showSheet) stopStream();
-  }, [showSheet, sheetMode]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const flipCamera = () => {
-    const next = facingMode === "user" ? "environment" : "user";
-    setFacingMode(next); startCamera(next);
-  };
-
-  const startRecording = () => {
-    if (!streamRef.current) return;
-    chunksRef.current = [];
-    const mr = new MediaRecorder(streamRef.current);
-    mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-    mr.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: "video/mp4" });
-      setRecordedBlob(blob); setRecordedUrl(URL.createObjectURL(blob));
-      stopStream(); setSheetMode("camera-preview");
-    };
-    mr.start(); mediaRecorderRef.current = mr;
-    setIsRecording(true); setRecSeconds(0);
-    timerRef.current = setInterval(() => setRecSeconds(s => s + 1), 1000);
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current) mediaRecorderRef.current.stop();
-    setIsRecording(false); clearInterval(timerRef.current);
-  };
-
-  const formatTime = s => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
-
-  // ── Upload video ──────────────────────────────────────────────────────────
   const uploadVideo = async (fileOrBlob, name) => {
     if (!name) return;
     const ext = fileOrBlob instanceof File ? fileOrBlob.name.split(".").pop() : "mp4";
@@ -392,7 +282,6 @@ export default function App() {
   const handleFileInput = f => { if (f && f.type.startsWith("video/")) uploadVideo(f, uploaderName); };
   const handleDrop = e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f && f.type.startsWith("video/")) uploadVideo(f, uploaderName); };
 
-  // ── Login ─────────────────────────────────────────────────────────────────
   if (!authed) return (
     <div className="app-root">
       <div className="login-wrap">
@@ -410,7 +299,6 @@ export default function App() {
     </div>
   );
 
-  // ── Main app ──────────────────────────────────────────────────────────────
   return (
     <div className="app-root">
       <header className="header">
@@ -424,8 +312,7 @@ export default function App() {
           <div className="create-avatar">🌸</div>
           <div className="create-placeholder">Share something with the girls...</div>
           <div className="create-actions">
-            <button className="create-pill" onClick={e => { e.stopPropagation(); openSheet("camera"); }}>🎥 Record</button>
-            <button className="create-pill" onClick={e => { e.stopPropagation(); openSheet("upload"); }}>📁 Upload</button>
+            <button className="create-pill" onClick={e => { e.stopPropagation(); openSheet("upload"); }}>🎥 Upload video</button>
           </div>
         </div>
 
@@ -462,7 +349,7 @@ export default function App() {
                     <span className={`card-badge ${item.type === "win" ? "badge-win" : "badge-thought"}`}>
                       {item.type === "win" ? "🏆 win" : "💭 thought"}
                     </span>
-                    <button className="delete-btn" onClick={() => confirmDelete(item)} title="Delete post">🗑️</button>
+                    <button className="delete-btn" onClick={() => confirmDelete(item)}>🗑️</button>
                   </div>
                 </div>
                 <div className="card-content">{item.content}</div>
@@ -479,7 +366,7 @@ export default function App() {
                   </div>
                   <div className="card-right">
                     <span className="card-badge badge-video">🎥 video</span>
-                    <button className="delete-btn" onClick={() => confirmDelete(item)} title="Delete video">🗑️</button>
+                    <button className="delete-btn" onClick={() => confirmDelete(item)}>🗑️</button>
                   </div>
                 </div>
                 <video className="card-video" src={item.url} controls preload="metadata" playsInline />
@@ -492,10 +379,9 @@ export default function App() {
         )}
       </main>
 
-      {/* FAB */}
       <button className="fab" onClick={() => openSheet()}>+ Create post</button>
 
-      {/* ── Delete confirmation modal ── */}
+      {/* Delete confirmation */}
       {deleteTarget && (
         <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setDeleteTarget(null)}>
           <div className="sheet" style={{ maxWidth: "380px" }}>
@@ -514,7 +400,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ── Create sheet ── */}
+      {/* Create sheet */}
       {showSheet && (
         <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && closeSheet()}>
           <div className="sheet">
@@ -531,14 +417,12 @@ export default function App() {
                   <button className="mode-btn" onClick={() => setSheetMode("post")}>
                     <div className="mode-icon">✍️</div>
                     <div className="mode-label">Write a post</div>
-                  </button>
-                  <button className="mode-btn" onClick={() => setSheetMode("camera")}>
-                    <div className="mode-icon">📸</div>
-                    <div className="mode-label">Record video</div>
+                    <div className="mode-sub">Win or thought</div>
                   </button>
                   <button className="mode-btn" onClick={() => setSheetMode("upload")}>
-                    <div className="mode-icon">📁</div>
-                    <div className="mode-label">Upload video</div>
+                    <div className="mode-icon">🎥</div>
+                    <div className="mode-label">Upload a video</div>
+                    <div className="mode-sub">From your phone</div>
                   </button>
                 </div>
               </>
@@ -580,62 +464,11 @@ export default function App() {
               </>
             )}
 
-            {/* Camera */}
-            {sheetMode === "camera" && (
-              <>
-                <div className="sheet-title">
-                  Record a video 🎥
-                  <button className="sheet-close" onClick={closeSheet}>✕</button>
-                </div>
-                <div className="camera-wrap">
-                  {cameraError
-                    ? <div className="camera-error">{cameraError}</div>
-                    : <>
-                        <video ref={videoRef} className="camera-preview" muted playsInline autoPlay />
-                        <div className="camera-controls">
-                          <button className="flip-btn" onClick={flipCamera}>🔄</button>
-                          <button className={`rec-btn ${isRecording ? "recording" : ""}`} onClick={isRecording ? stopRecording : startRecording}>
-                            {isRecording ? "⏹" : "⏺"}
-                          </button>
-                          <div className="rec-timer">{isRecording && <span className="rec-dot" />}{formatTime(recSeconds)}</div>
-                        </div>
-                        <p className="camera-hint">{isRecording ? "Tap ⏹ to stop recording" : "Tap ⏺ to start • 🔄 to flip camera"}</p>
-                      </>
-                  }
-                </div>
-                <button className="btn-cancel" style={{ width: "100%" }} onClick={closeSheet}>Cancel</button>
-              </>
-            )}
-
-            {/* Camera preview */}
-            {sheetMode === "camera-preview" && recordedUrl && (
-              <>
-                <div className="sheet-title">
-                  Looking good? 👀
-                  <button className="sheet-close" onClick={closeSheet}>✕</button>
-                </div>
-                <div className="recorded-preview">
-                  <video src={recordedUrl} controls />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Who are you?</label>
-                  <select className="select-field" value={uploaderName} onChange={e => setUploaderName(e.target.value)}>
-                    <option value="">Select your name...</option>
-                    {MEMBERS.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
-                </div>
-                <div className="sheet-actions">
-                  <button className="btn-cancel" onClick={() => { setRecordedBlob(null); setRecordedUrl(null); setSheetMode("camera"); setTimeout(() => startCamera(), 200); }}>Re-record</button>
-                  <button className="btn-submit" disabled={!uploaderName} onClick={() => uploadVideo(recordedBlob, uploaderName)}>Post it ✨</button>
-                </div>
-              </>
-            )}
-
-            {/* Upload file */}
+            {/* Upload video */}
             {sheetMode === "upload" && (
               <>
                 <div className="sheet-title">
-                  Upload a video 📁
+                  Upload a video 🎥
                   <button className="sheet-close" onClick={closeSheet}>✕</button>
                 </div>
                 <div className="form-group">
