@@ -11,13 +11,6 @@ export default async function handler(req, res) {
 
   const { posterName, type, content } = req.body;
 
-  // ── DEBUG ──
-  console.log("VAPID keys present:", {
-    public: !!process.env.VAPID_PUBLIC_KEY,
-    private: !!process.env.VAPID_PRIVATE_KEY,
-    subject: process.env.VAPID_SUBJECT,
-  });
-
   const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
   const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 
@@ -39,7 +32,7 @@ export default async function handler(req, res) {
     </div>
   `;
 
-  // ── Email ──
+  // Email
   let emailResult = null;
   try {
     const resendRes = await fetch("https://api.resend.com/emails", {
@@ -58,17 +51,15 @@ export default async function handler(req, res) {
     emailResult = await resendRes.json();
   } catch (e) {
     emailResult = { error: e.message };
-    console.error("Email error:", e);
   }
 
-  // ── Push notifications ──
-  let pushResult = { sent: 0, failed: 0, errors: [] };
+  // Push notifications
+  let pushResult = { sent: 0, failed: 0 };
   try {
     const subsRes = await fetch(`${supabaseUrl}/rest/v1/push_subscriptions?select=id,subscription`, {
       headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
     });
     const subs = await subsRes.json();
-    console.log(`Found ${subs.length} push subscriptions`);
 
     const pushPayload = JSON.stringify({
       title: `${posterName} ${typeLabel} 🌸`,
@@ -80,11 +71,9 @@ export default async function handler(req, res) {
       try {
         await webpush.sendNotification(s.subscription, pushPayload);
         pushResult.sent++;
-        console.log("Push sent successfully to subscription", s.id);
       } catch (err) {
         pushResult.failed++;
-        pushResult.errors.push({ id: s.id, status: err.statusCode, message: err.message });
-        console.error(`Push failed for sub ${s.id}:`, err.statusCode, err.message);
+        // Auto-clean expired subscriptions
         if (err.statusCode === 404 || err.statusCode === 410) {
           await fetch(`${supabaseUrl}/rest/v1/push_subscriptions?id=eq.${s.id}`, {
             method: "DELETE",
@@ -95,7 +84,6 @@ export default async function handler(req, res) {
     }
   } catch (e) {
     pushResult.error = e.message;
-    console.error("Push notification error:", e);
   }
 
   return res.status(200).json({ ok: true, email: emailResult, push: pushResult });
