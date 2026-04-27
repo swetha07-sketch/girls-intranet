@@ -11,8 +11,8 @@ self.addEventListener("push", (event) => {
   const title = data.title || "2 States' Corner 🌸";
   const options = {
     body: data.body || "",
-    icon: data.icon || "/favicon.ico",
-    badge: "/favicon.ico",
+    icon: data.icon || "https://emojicdn.elk.sh/🌸?style=apple",
+    badge: "https://emojicdn.elk.sh/🌸?style=apple",
     data: { url: data.url || "/" },
     vibrate: [200, 100, 200],
   };
