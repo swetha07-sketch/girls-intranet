@@ -3,10 +3,10 @@ export default async function handler(req, res) {
 
   const { posterName, type, content, posterEmail } = req.body;
 
-  // Get all profile emails from Supabase
   const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
   const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 
+  // Get all profiles from Supabase
   const profilesRes = await fetch(`${supabaseUrl}/rest/v1/profiles?select=email,name`, {
     headers: {
       apikey: supabaseKey,
@@ -16,15 +16,14 @@ export default async function handler(req, res) {
 
   const profiles = await profilesRes.json();
 
-  // Send to everyone except the poster
+  // Recipients = everyone EXCEPT the poster
   const recipients = profiles
     .filter(p => p.email !== posterEmail)
-    .map(p => p.email);
+    .map(p => ({ email: p.email, name: p.name }));
 
   if (recipients.length === 0) return res.status(200).json({ ok: true, sent: 0 });
 
   const typeLabel = type === "win" ? "🏆 shared a win" : type === "thought" ? "💭 shared a thought" : "🎥 uploaded a video";
-  const preview = type === "video" ? "" : `\n\n"${content.slice(0, 120)}${content.length > 120 ? "…" : ""}"`;
 
   const emailBody = `
     <div style="font-family: Georgia, serif; max-width: 480px; margin: 0 auto; padding: 2rem; background: #faf7f2; border-radius: 16px;">
@@ -42,21 +41,22 @@ export default async function handler(req, res) {
     </div>
   `;
 
-  // Send via Resend
-  const resendRes = await fetch("https://api.resend.com/emails", {
+  // Send via Brevo
+  const brevoRes = await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      "api-key": process.env.BREVO_API_KEY,
+      "accept": "application/json",
     },
     body: JSON.stringify({
-      from: "2 States Corner <onboarding@resend.dev>",
+      sender: { name: "2 States' Corner", email: "noreply@2statescorner.app" },
       to: recipients,
       subject: `${posterName} just posted on 2 States' Corner! 🌸`,
-      html: emailBody,
+      htmlContent: emailBody,
     }),
   });
 
-  const result = await resendRes.json();
+  const result = await brevoRes.json();
   return res.status(200).json({ ok: true, result });
 }
