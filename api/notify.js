@@ -1,7 +1,25 @@
+import webpush from "web-push";
+
+webpush.setVapidDetails(
+  process.env.VAPID_SUBJECT || "mailto:2statescorner@gmail.com",
+  process.env.VAPID_PUBLIC_KEY,
+  process.env.VAPID_PRIVATE_KEY
+);
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   const { posterName, type, content } = req.body;
+
+  // ── DEBUG ──
+  console.log("VAPID keys present:", {
+    public: !!process.env.VAPID_PUBLIC_KEY,
+    private: !!process.env.VAPID_PRIVATE_KEY,
+    subject: process.env.VAPID_SUBJECT,
+  });
+
+  const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+  const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 
   const typeLabel = type === "win" ? "🏆 shared a win" : type === "thought" ? "💭 shared a thought" : "🎥 uploaded a video";
 
@@ -21,21 +39,64 @@ export default async function handler(req, res) {
     </div>
   `;
 
-  // Send ONE email to the shared inbox
-  const resendRes = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-    },
-    body: JSON.stringify({
-      from: "2 States' Corner <onboarding@resend.dev>",
-      to: "2statescorner@gmail.com",
-      subject: `${posterName} just posted on 2 States' Corner! 🌸`,
-      html: emailBody,
-    }),
-  });
+  // ── Email ──
+  let emailResult = null;
+  try {
+    const resendRes = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      },
+      body: JSON.stringify({
+        from: "2 States' Corner <onboarding@resend.dev>",
+        to: "2statescorner@gmail.com",
+        subject: `${posterName} just posted on 2 States' Corner! 🌸`,
+        html: emailBody,
+      }),
+    });
+    emailResult = await resendRes.json();
+  } catch (e) {
+    emailResult = { error: e.message };
+    console.error("Email error:", e);
+  }
 
-  const result = await resendRes.json();
-  return res.status(200).json({ ok: true, result });
+  // ── Push notifications ──
+  let pushResult = { sent: 0, failed: 0, errors: [] };
+  try {
+    const subsRes = await fetch(`${supabaseUrl}/rest/v1/push_subscriptions?select=id,subscription`, {
+      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
+    });
+    const subs = await subsRes.json();
+    console.log(`Found ${subs.length} push subscriptions`);
+
+    const pushPayload = JSON.stringify({
+      title: `${posterName} ${typeLabel} 🌸`,
+      body: type === "video" ? "Tap to watch" : (content?.slice(0, 100) || ""),
+      url: process.env.REACT_APP_SITE_URL || "https://2-states-corner.vercel.app",
+    });
+
+    for (const s of subs || []) {
+      try {
+        await webpush.sendNotification(s.subscription, pushPayload);
+        pushResult.sent++;
+        console.log("Push sent successfully to subscription", s.id);
+      } catch (err) {
+        pushResult.failed++;
+        pushResult.errors.push({ id: s.id, status: err.statusCode, message: err.message });
+        console.error(`Push failed for sub ${s.id}:`, err.statusCode, err.message);
+        if (err.statusCode === 404 || err.statusCode === 410) {
+          await fetch(`${supabaseUrl}/rest/v1/push_subscriptions?id=eq.${s.id}`, {
+            method: "DELETE",
+            headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
+          });
+        }
+      }
+    }
+  } catch (e) {
+    pushResult.error = e.message;
+    console.error("Push notification error:", e);
+  }
+
+  return res.status(200).json({ ok: true, email: emailResult, push: pushResult });
 }
