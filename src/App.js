@@ -227,6 +227,10 @@ export default function App() {
   const [authError, setAuthError] = useState("");
   const [authSubmitting, setAuthSubmitting] = useState(false);
 
+  const [pushPermission, setPushPermission] = useState(
+    typeof Notification !== "undefined" ? Notification.permission : "default"
+  );
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -241,6 +245,14 @@ export default function App() {
   useEffect(() => {
     if (user) { loadProfile(); loadFeed(); }
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/service-worker.js").catch(err =>
+        console.log("Service worker registration failed", err)
+      );
+    }
+  }, []);
 
   const loadProfile = async () => {
     const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
@@ -281,6 +293,31 @@ export default function App() {
     loadProfile();
     loadFeed();
     setSetupSubmitting(false);
+  };
+
+  const enablePushNotifications = async () => {
+    try {
+      const permission = await Notification.requestPermission();
+      setPushPermission(permission);
+      if (permission !== "granted") return;
+
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(process.env.REACT_APP_VAPID_PUBLIC_KEY),
+      });
+
+      // Save subscription to Supabase
+      await supabase.from("push_subscriptions").insert([{
+        user_id: user.id,
+        subscription: subscription.toJSON(),
+      }]);
+
+      alert("Notifications enabled! 🌸");
+    } catch (err) {
+      console.error("Push subscription failed", err);
+      alert("Couldn't enable notifications. Make sure you've allowed them in your browser settings!");
+    }
   };
 
   // ── Load feed with avatars from profiles ──────────────────────────────────
@@ -389,6 +426,13 @@ export default function App() {
   const handleFileInput = f => { if (f && f.type.startsWith("video/")) uploadVideo(f); };
   const handleDrop = e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f && f.type.startsWith("video/")) uploadVideo(f); };
 
+  const urlBase64ToUint8Array = (base64String) => {
+    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const rawData = window.atob(base64);
+    return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+  };
+
   if (authLoading) return (
     <div className="app-root">
       <div className="auth-wrap"><div className="empty-state"><div className="empty-icon">🌸</div><p>Loading…</p></div></div>
@@ -483,6 +527,16 @@ export default function App() {
               <div className="header-avatar">{profile.avatar || "🌸"}</div>
               <span className="header-user">{profile.name}</span>
             </>
+          )}
+          {pushPermission !== "granted" && (
+            <button
+              className="logout-btn"
+              onClick={enablePushNotifications}
+              title="Enable push notifications"
+              style={{ borderColor: "#c97b6e", color: "#c97b6e" }}
+            >
+              🔔 Enable
+            </button>
           )}
           <button className="logout-btn" onClick={handleLogout}>Leave</button>
         </div>
