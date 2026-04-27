@@ -1,27 +1,7 @@
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { posterName, type, content, posterEmail } = req.body;
-
-  const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
-  const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
-
-  // Get all profiles from Supabase
-  const profilesRes = await fetch(`${supabaseUrl}/rest/v1/profiles?select=email,name`, {
-    headers: {
-      apikey: supabaseKey,
-      Authorization: `Bearer ${supabaseKey}`,
-    },
-  });
-
-  const profiles = await profilesRes.json();
-
-  // Recipients = everyone EXCEPT the poster
-  const recipients = profiles
-    .filter(p => p.email !== posterEmail)
-    .map(p => p.email);
-
-  if (recipients.length === 0) return res.status(200).json({ ok: true, sent: 0 });
+  const { posterName, type, content } = req.body;
 
   const typeLabel = type === "win" ? "🏆 shared a win" : type === "thought" ? "💭 shared a thought" : "🎥 uploaded a video";
 
@@ -41,24 +21,21 @@ export default async function handler(req, res) {
     </div>
   `;
 
-  // Send via Resend (one email per recipient to avoid free tier restriction)
-  const results = await Promise.all(
-    recipients.map(email =>
-      fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-        },
-        body: JSON.stringify({
-          from: "2 States' Corner <onboarding@resend.dev>",
-          to: email,
-          subject: `${posterName} just posted on 2 States' Corner! 🌸`,
-          html: emailBody,
-        }),
-      }).then(r => r.json())
-    )
-  );
+  // Send ONE email to the shared inbox
+  const resendRes = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+    },
+    body: JSON.stringify({
+      from: "2 States' Corner <onboarding@resend.dev>",
+      to: "2statescorner@gmail.com",
+      subject: `${posterName} just posted on 2 States' Corner! 🌸`,
+      html: emailBody,
+    }),
+  });
 
-  return res.status(200).json({ ok: true, results });
+  const result = await resendRes.json();
+  return res.status(200).json({ ok: true, result });
 }
