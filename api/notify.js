@@ -19,7 +19,7 @@ export default async function handler(req, res) {
   // Recipients = everyone EXCEPT the poster
   const recipients = profiles
     .filter(p => p.email !== posterEmail)
-    .map(p => ({ email: p.email, name: p.name }));
+    .map(p => p.email);
 
   if (recipients.length === 0) return res.status(200).json({ ok: true, sent: 0 });
 
@@ -41,22 +41,24 @@ export default async function handler(req, res) {
     </div>
   `;
 
-  // Send via Brevo
-  const brevoRes = await fetch("https://api.brevo.com/v3/smtp/email", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": process.env.BREVO_API_KEY,
-      "accept": "application/json",
-    },
-    body: JSON.stringify({
-      sender: { name: "2 States' Corner", email: "2statescorner@gmail.com" },
-      to: recipients,
-      subject: `${posterName} just posted on 2 States' Corner! 🌸`,
-      htmlContent: emailBody,
-    }),
-  });
+  // Send via Resend (one email per recipient to avoid free tier restriction)
+  const results = await Promise.all(
+    recipients.map(email =>
+      fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        },
+        body: JSON.stringify({
+          from: "2 States' Corner <onboarding@resend.dev>",
+          to: email,
+          subject: `${posterName} just posted on 2 States' Corner! 🌸`,
+          html: emailBody,
+        }),
+      }).then(r => r.json())
+    )
+  );
 
-  const result = await brevoRes.json();
-  return res.status(200).json({ ok: true, result });
+  return res.status(200).json({ ok: true, results });
 }
