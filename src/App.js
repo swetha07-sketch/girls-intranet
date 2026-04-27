@@ -320,19 +320,28 @@ export default function App() {
   const loadFeed = async () => {
     setLoadingFeed(true);
     const lastWednesday = getLastWednesday().toISOString();
+    
     const { data: posts } = await supabase
       .from("posts").select("*").gte("created_at", lastWednesday).order("created_at", { ascending: false });
+    
+    // fetch all profiles to get avatars
+    const { data: allProfiles } = await supabase.from("profiles").select("name, avatar");
+    const avatarMap = {};
+    (allProfiles || []).forEach(p => { avatarMap[p.name] = p.avatar; });
+
     const { data: files } = await supabase.storage.from("videos").list("", { limit: 100, sortBy: { column: "created_at", order: "desc" } });
     const freshVideos = (files || [])
       .filter(f => f.name !== ".emptyFolderPlaceholder" && new Date(f.created_at) >= new Date(lastWednesday))
       .map(f => ({
         id: f.id, itemType: "video",
         name: f.name.split("_")[0],
+        avatar: avatarMap[f.name.split("_")[0]] || "🌸",
         created_at: f.created_at,
         url: supabase.storage.from("videos").getPublicUrl(f.name).data.publicUrl,
         fileName: f.name,
       }));
-    const postItems = (posts || []).map(p => ({ ...p, itemType: "post" }));
+
+    const postItems = (posts || []).map(p => ({ ...p, itemType: "post", avatar: avatarMap[p.name] || "🌸" }));
     const merged = [...postItems, ...freshVideos].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     setFeed(merged);
     setLoadingFeed(false);
