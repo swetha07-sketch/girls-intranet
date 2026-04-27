@@ -50,7 +50,7 @@ export default async function handler(req, res) {
       "accept": "application/json",
     },
     body: JSON.stringify({
-      sender: { name: "2 States' Corner", email: "noreply@2statescorner.app" },
+      sender: { name: "2 States' Corner", email: "swetha.sivashanmugam@gmail.com" },
       to: recipients,
       subject: `${posterName} just posted on 2 States' Corner! 🌸`,
       htmlContent: emailBody,
