@@ -8,6 +8,8 @@ const supabase = createClient(
 
 const MEMBERS = ["Farida", "Meghavi", "Prakruti", "Pulak", "Swetha"];
 
+const INVITE_CODE = process.env.REACT_APP_INVITE_CODE;
+
 const getLastWednesday = () => {
   const now = new Date();
   const day = now.getDay();
@@ -224,6 +226,7 @@ export default function App() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [authError, setAuthError] = useState("");
   const [authSubmitting, setAuthSubmitting] = useState(false);
 
@@ -262,6 +265,7 @@ export default function App() {
 
   const handleSignup = async () => {
     if (!email || !password) { setAuthError("Please fill in all fields!"); return; }
+    if (inviteCode !== INVITE_CODE) { setAuthError("Invalid invite code 💔"); return; }
     if (password.length < 6) { setAuthError("Password must be at least 6 characters!"); return; }
     setAuthSubmitting(true); setAuthError("");
     const { error } = await supabase.auth.signUp({ email, password });
@@ -446,6 +450,9 @@ export default function App() {
           <div className="auth-icon">🌸</div>
           <h1 className="auth-title">Join the Corner</h1>
           <p className="auth-sub">Create your account to join 2 States' Corner ✨</p>
+          <label className="form-label-left">Invite code</label>
+          <input className="input-field" type="text" placeholder="Got the secret code?" value={inviteCode}
+            onChange={e => { setInviteCode(e.target.value); setAuthError(""); }} />
           <label className="form-label-left">Email</label>
           <input className="input-field" type="email" placeholder="your@email.com" value={email}
             onChange={e => { setEmail(e.target.value); setAuthError(""); }} />
