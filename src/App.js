@@ -6,9 +6,7 @@ const supabase = createClient(
   process.env.REACT_APP_SUPABASE_ANON_KEY
 );
 
-const SHARED_PASSWORD = process.env.REACT_APP_PASSWORD || "girlsclub2024";
 const MEMBERS = ["Farida", "Meghavi", "Prakruti", "Pulak", "Swetha"];
-// ↑ Replace these with your actual friend group names!
 
 const getLastWednesday = () => {
   const now = new Date();
@@ -44,6 +42,8 @@ const expiresIn = (ts) => {
   return `${Math.floor(h / 24)}d left`;
 };
 
+const AVATAR_EMOJIS = ["🌸", "🌺", "🦋", "🌙", "⭐", "🌈", "🍓", "🌻", "🦄", "💫", "🌷", "🍒"];
+
 const styleTag = document.createElement("style");
 styleTag.textContent = `
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap');
@@ -60,22 +60,52 @@ styleTag.textContent = `
   body::before { content: ''; position: fixed; inset: 0; background-image: radial-gradient(circle, #c97b6e18 1px, transparent 1px); background-size: 28px 28px; pointer-events: none; z-index: 0; }
   .app-root { position: relative; z-index: 1; }
 
-  /* Login */
-  .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem; }
-  .login-card { background: var(--card); border: 1px solid var(--border); border-radius: 24px; padding: 3rem 2.5rem; width: 100%; max-width: 400px; box-shadow: var(--shadow-lg); text-align: center; }
-  .login-icon { font-size: 3rem; margin-bottom: 1rem; }
-  .login-title { font-family: 'Playfair Display', serif; font-size: 2rem; color: var(--brown); margin-bottom: 0.4rem; }
-  .login-sub { color: var(--taupe); font-size: 0.95rem; margin-bottom: 2rem; }
-  .input-field { width: 100%; padding: 0.85rem 1.1rem; border: 1.5px solid var(--border); border-radius: 12px; font-family: 'DM Sans', sans-serif; font-size: 1rem; background: var(--warm-white); color: var(--text); outline: none; transition: border-color 0.2s; margin-bottom: 1rem; }
+  /* Auth */
+  .auth-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem; }
+  .auth-card { background: var(--card); border: 1px solid var(--border); border-radius: 24px; padding: 3rem 2.5rem; width: 100%; max-width: 420px; box-shadow: var(--shadow-lg); text-align: center; }
+  .auth-icon { font-size: 3rem; margin-bottom: 1rem; }
+  .auth-title { font-family: 'Playfair Display', serif; font-size: 2rem; color: var(--brown); margin-bottom: 0.4rem; }
+  .auth-sub { color: var(--taupe); font-size: 0.92rem; margin-bottom: 2rem; line-height: 1.5; }
+  .auth-switch { margin-top: 1.2rem; font-size: 0.88rem; color: var(--taupe); }
+  .auth-switch button { background: none; border: none; color: var(--rose); cursor: pointer; font-size: 0.88rem; text-decoration: underline; font-family: 'DM Sans', sans-serif; }
+  .input-field { width: 100%; padding: 0.85rem 1.1rem; border: 1.5px solid var(--border); border-radius: 12px; font-family: 'DM Sans', sans-serif; font-size: 1rem; background: var(--warm-white); color: var(--text); outline: none; transition: border-color 0.2s; margin-bottom: 0.85rem; }
   .input-field:focus { border-color: var(--rose); }
-  .btn-primary { width: 100%; padding: 0.9rem; background: var(--rose); color: white; border: none; border-radius: 12px; font-family: 'DM Sans', sans-serif; font-size: 1rem; font-weight: 500; cursor: pointer; transition: background 0.2s; }
+  .btn-primary { width: 100%; padding: 0.9rem; background: var(--rose); color: white; border: none; border-radius: 12px; font-family: 'DM Sans', sans-serif; font-size: 1rem; font-weight: 500; cursor: pointer; transition: background 0.2s; margin-top: 0.3rem; }
   .btn-primary:hover { background: var(--rose-dark); }
-  .error-msg { color: var(--rose); font-size: 0.88rem; margin-top: 0.5rem; }
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+  .error-msg { color: var(--rose); font-size: 0.88rem; margin-top: 0.3rem; margin-bottom: 0.5rem; }
+  .form-label-left { font-size: 0.8rem; font-weight: 500; color: var(--taupe); margin-bottom: 0.35rem; display: block; text-transform: uppercase; letter-spacing: 0.05em; text-align: left; }
+
+  /* Profile setup */
+  .profile-setup-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem; }
+  .profile-setup-card { background: var(--card); border: 1px solid var(--border); border-radius: 24px; padding: 3rem 2.5rem; width: 100%; max-width: 460px; box-shadow: var(--shadow-lg); text-align: center; }
+  .profile-setup-title { font-family: 'Playfair Display', serif; font-size: 1.9rem; color: var(--brown); margin-bottom: 0.5rem; }
+  .profile-setup-sub { color: var(--taupe); font-size: 0.92rem; margin-bottom: 2rem; line-height: 1.5; }
+
+  /* Avatar picker */
+  .avatar-big { width: 80px; height: 80px; border-radius: 50%; background: var(--blush); display: flex; align-items: center; justify-content: center; font-size: 2.2rem; margin: 0 auto 0.75rem; border: 3px solid var(--border); transition: border-color 0.2s; }
+  .avatar-big.selected { border-color: var(--rose); }
+  .avatar-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.5rem; margin-bottom: 1.5rem; }
+  .avatar-option { width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--border); background: var(--warm-white); font-size: 1.3rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; margin: 0 auto; }
+  .avatar-option:hover { border-color: var(--rose); transform: scale(1.1); }
+  .avatar-option.active { border-color: var(--rose); background: #fdf0ec; transform: scale(1.1); }
+
+  /* Name picker */
+  .name-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.6rem; margin-bottom: 1.5rem; }
+  .name-option { padding: 0.75rem; border-radius: 12px; border: 1.5px solid var(--border); background: var(--warm-white); font-family: 'DM Sans', sans-serif; font-size: 0.95rem; font-weight: 500; color: var(--brown); cursor: pointer; transition: all 0.15s; text-align: center; }
+  .name-option:hover { border-color: var(--rose); background: #fdf0ec; }
+  .name-option.active { border-color: var(--rose); background: #fdf0ec; color: var(--rose-dark); }
+
+  /* Section label */
+  .setup-section-label { font-size: 0.82rem; font-weight: 500; color: var(--taupe); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.75rem; text-align: left; }
 
   /* Header */
   .header { display: flex; align-items: center; justify-content: space-between; padding: 1.1rem 2rem; background: var(--card); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 12px rgba(90,50,30,0.06); }
   .header-logo { font-family: 'Playfair Display', serif; font-style: italic; font-size: 1.4rem; color: var(--brown); }
   .header-logo span { color: var(--rose); }
+  .header-right { display: flex; align-items: center; gap: 0.75rem; }
+  .header-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--blush); display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+  .header-user { font-size: 0.85rem; color: var(--taupe); font-weight: 500; }
   .logout-btn { background: none; border: 1.5px solid var(--border); color: var(--taupe); cursor: pointer; font-size: 0.85rem; padding: 0.4rem 0.9rem; border-radius: 999px; transition: all 0.2s; font-family: 'DM Sans', sans-serif; }
   .logout-btn:hover { border-color: var(--rose); color: var(--rose); }
 
@@ -85,7 +115,7 @@ styleTag.textContent = `
   /* Create bar */
   .create-bar { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 1rem 1.2rem; margin-bottom: 1.5rem; box-shadow: var(--shadow); display: flex; align-items: center; gap: 0.9rem; cursor: pointer; transition: box-shadow 0.2s; flex-wrap: wrap; }
   .create-bar:hover { box-shadow: var(--shadow-lg); }
-  .create-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--blush); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+  .create-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--blush); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; }
   .create-placeholder { flex: 1; padding: 0.6rem 1rem; border-radius: 999px; background: var(--cream); border: 1.5px solid var(--border); color: var(--taupe); font-size: 0.93rem; font-family: 'DM Sans', sans-serif; text-align: left; min-width: 120px; }
   .create-actions { display: flex; gap: 0.5rem; }
   .create-pill { padding: 0.45rem 0.9rem; border-radius: 999px; border: 1.5px solid var(--border); background: transparent; font-family: 'DM Sans', sans-serif; font-size: 0.82rem; color: var(--taupe); cursor: pointer; transition: all 0.15s; white-space: nowrap; font-weight: 500; }
@@ -98,7 +128,7 @@ styleTag.textContent = `
   @keyframes cardIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
   .card-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.3rem 0.6rem; }
   .card-author { display: flex; align-items: center; gap: 0.65rem; }
-  .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--blush); display: flex; align-items: center; justify-content: center; font-size: 0.9rem; font-weight: 600; color: var(--rose-dark); flex-shrink: 0; }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--blush); display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
   .author-name { font-weight: 500; font-size: 0.95rem; color: var(--brown); }
   .post-time { font-size: 0.76rem; color: var(--taupe); margin-top: 1px; }
   .card-right { display: flex; align-items: center; gap: 0.5rem; }
@@ -150,9 +180,8 @@ styleTag.textContent = `
   /* Form */
   .form-label { font-size: 0.8rem; font-weight: 500; color: var(--taupe); margin-bottom: 0.35rem; display: block; text-transform: uppercase; letter-spacing: 0.05em; }
   .form-group { margin-bottom: 1rem; }
-  .select-field { width: 100%; padding: 0.8rem 1rem; border: 1.5px solid var(--border); border-radius: 12px; font-family: 'DM Sans', sans-serif; font-size: 0.95rem; background: var(--warm-white); color: var(--text); outline: none; cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239e8c7e' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 1rem center; }
   .textarea-field { width: 100%; padding: 0.8rem 1rem; border: 1.5px solid var(--border); border-radius: 12px; font-family: 'DM Sans', sans-serif; font-size: 0.95rem; background: var(--warm-white); color: var(--text); outline: none; resize: none; transition: border-color 0.2s; min-height: 90px; }
-  .textarea-field:focus, .select-field:focus { border-color: var(--rose); }
+  .textarea-field:focus { border-color: var(--rose); }
   .type-pills { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
   .pill { padding: 0.4rem 0.9rem; border-radius: 999px; border: 1.5px solid var(--border); background: transparent; font-family: 'DM Sans', sans-serif; font-size: 0.85rem; cursor: pointer; color: var(--taupe); transition: all 0.15s; font-weight: 500; }
   .pill.win.active { background: var(--gold); border-color: var(--gold); color: white; }
@@ -184,12 +213,25 @@ styleTag.textContent = `
     .header { padding: 1rem 1.1rem; }
     .header-logo { font-size: 1.15rem; }
     .main { padding: 1.2rem 0.9rem 8rem; }
+    .auth-card, .profile-setup-card { padding: 2rem 1.5rem; }
+    .avatar-grid { grid-template-columns: repeat(4, 1fr); }
   }
 `;
 document.head.appendChild(styleTag);
 
 export default function App() {
-  const [authed, setAuthed] = useState(() => sessionStorage.getItem("girls_auth") === "yes");
+  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [authMode, setAuthMode] = useState("login");
+  const [authLoading, setAuthLoading] = useState(true);
+  const [needsProfileSetup, setNeedsProfileSetup] = useState(false);
+
+  // profile setup
+  const [setupName, setSetupName] = useState("");
+  const [setupAvatar, setSetupAvatar] = useState("🌸");
+  const [setupSubmitting, setSetupSubmitting] = useState(false);
+  const [setupError, setSetupError] = useState("");
+
   const [feed, setFeed] = useState([]);
   const [loadingFeed, setLoadingFeed] = useState(true);
   const [uploadProgress, setUploadProgress] = useState(null);
@@ -197,21 +239,84 @@ export default function App() {
   const [sheetMode, setSheetMode] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
-  const [form, setForm] = useState({ name: "", content: "", type: "win" });
+  const [form, setForm] = useState({ content: "", type: "win" });
   const [submitting, setSubmitting] = useState(false);
-  const [uploaderName, setUploaderName] = useState("");
   const [dragging, setDragging] = useState(false);
   const fileInputRef = useRef();
-  const [pwInput, setPwInput] = useState("");
-  const [pwError, setPwError] = useState("");
 
-  const handleLogin = () => {
-    if (pwInput === SHARED_PASSWORD) { sessionStorage.setItem("girls_auth", "yes"); setAuthed(true); }
-    else setPwError("Wrong password, babe 💔 Try again!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [authSubmitting, setAuthSubmitting] = useState(false);
+
+  // ── Session ───────────────────────────────────────────────────────────────
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (user) { loadProfile(); loadFeed(); }
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadProfile = async () => {
+    const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+    if (!data) {
+      setNeedsProfileSetup(true);
+    } else {
+      setProfile(data);
+      setNeedsProfileSetup(false);
+    }
   };
 
-  useEffect(() => { if (authed) loadFeed(); }, [authed]); // eslint-disable-line react-hooks/exhaustive-deps
+  // ── Auth ──────────────────────────────────────────────────────────────────
+  const handleSignup = async () => {
+    if (!email || !password) { setAuthError("Please fill in all fields!"); return; }
+    if (password.length < 6) { setAuthError("Password must be at least 6 characters!"); return; }
+    setAuthSubmitting(true); setAuthError("");
+    const { error } = await supabase.auth.signUp({ email, password });
+    if (error) { setAuthError(error.message); setAuthSubmitting(false); return; }
+    setAuthSubmitting(false);
+    // profile setup will show automatically since no profile exists yet
+  };
 
+  const handleLogin = async () => {
+    if (!email || !password) { setAuthError("Please enter your email and password!"); return; }
+    setAuthSubmitting(true); setAuthError("");
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) { setAuthError("Wrong email or password — try again! 💔"); }
+    setAuthSubmitting(false);
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setProfile(null); setFeed([]); setNeedsProfileSetup(false);
+  };
+
+  // ── Profile setup submit ──────────────────────────────────────────────────
+  const handleProfileSetup = async () => {
+    if (!setupName) { setSetupError("Please pick your name!"); return; }
+    setSetupSubmitting(true);
+    const { error } = await supabase.from("profiles").insert([{
+      id: user.id,
+      name: setupName,
+      email: user.email,
+      avatar: setupAvatar,
+    }]);
+    if (error) { setSetupError("Something went wrong, try again!"); setSetupSubmitting(false); return; }
+    setNeedsProfileSetup(false);
+    loadProfile();
+    loadFeed();
+    setSetupSubmitting(false);
+  };
+
+  // ── Feed ──────────────────────────────────────────────────────────────────
   const loadFeed = async () => {
     setLoadingFeed(true);
     const lastWednesday = getLastWednesday().toISOString();
@@ -236,23 +341,28 @@ export default function App() {
   const openSheet = (mode = null) => { setSheetMode(mode); setShowSheet(true); };
   const closeSheet = () => {
     setShowSheet(false);
-    setTimeout(() => {
-      setSheetMode(null);
-      setForm({ name: "", content: "", type: "win" });
-      setUploaderName("");
-    }, 300);
+    setTimeout(() => { setSheetMode(null); setForm({ content: "", type: "win" }); }, 300);
+  };
+
+  const sendNotification = async (posterName, type, content) => {
+    try {
+      await fetch("/api/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ posterName, type, content, posterEmail: user.email }),
+      });
+    } catch (e) { console.log("Notification failed silently", e); }
   };
 
   const handlePostSubmit = async () => {
-    if (!form.name || !form.content.trim()) return;
+    if (!form.content.trim()) return;
     setSubmitting(true);
-    await supabase.from("posts").insert([{ name: form.name, content: form.content.trim(), type: form.type }]);
-    setSubmitting(false);
-    closeSheet();
-    loadFeed();
+    const name = profile?.name || "Someone";
+    await supabase.from("posts").insert([{ name, content: form.content.trim(), type: form.type }]);
+    await sendNotification(name, form.type, form.content.trim());
+    setSubmitting(false); closeSheet(); loadFeed();
   };
 
-  const confirmDelete = (item) => setDeleteTarget(item);
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
@@ -261,62 +371,144 @@ export default function App() {
     } else {
       await supabase.storage.from("videos").remove([deleteTarget.fileName]);
     }
-    setDeleting(false);
-    setDeleteTarget(null);
-    loadFeed();
+    setDeleting(false); setDeleteTarget(null); loadFeed();
   };
 
-  const uploadVideo = async (fileOrBlob, name) => {
-    if (!name) return;
-    const ext = fileOrBlob instanceof File ? fileOrBlob.name.split(".").pop() : "mp4";
+  const uploadVideo = async (file) => {
+    const name = profile?.name || "Someone";
+    const ext = file.name.split(".").pop();
     const fileName = `${name}_${Date.now()}.${ext}`;
-    closeSheet();
-    setUploadProgress(0);
+    closeSheet(); setUploadProgress(0);
     const interval = setInterval(() => setUploadProgress(p => p < 85 ? p + Math.random() * 12 : p), 300);
-    await supabase.storage.from("videos").upload(fileName, fileOrBlob, { cacheControl: "3600", upsert: false });
-    clearInterval(interval);
-    setUploadProgress(100);
+    await supabase.storage.from("videos").upload(fileName, file, { cacheControl: "3600", upsert: false });
+    clearInterval(interval); setUploadProgress(100);
+    await sendNotification(name, "video", "shared a video 🎥");
     setTimeout(() => { setUploadProgress(null); loadFeed(); }, 900);
   };
 
-  const handleFileInput = f => { if (f && f.type.startsWith("video/")) uploadVideo(f, uploaderName); };
-  const handleDrop = e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f && f.type.startsWith("video/")) uploadVideo(f, uploaderName); };
+  const handleFileInput = f => { if (f && f.type.startsWith("video/")) uploadVideo(f); };
+  const handleDrop = e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f && f.type.startsWith("video/")) uploadVideo(f); };
 
-  if (!authed) return (
+  // ── Loading ───────────────────────────────────────────────────────────────
+  if (authLoading) return (
     <div className="app-root">
-      <div className="login-wrap">
-        <div className="login-card">
-          <div className="login-icon">🌸</div>
-          <h1 className="login-title">2 States' Corner</h1>
-          <p className="login-sub">Our private little world. Password please ✨</p>
-          <input className="input-field" type="password" placeholder="Enter password..." value={pwInput}
-            onChange={e => { setPwInput(e.target.value); setPwError(""); }}
-            onKeyDown={e => e.key === "Enter" && handleLogin()} autoFocus />
-          {pwError && <p className="error-msg">{pwError}</p>}
-          <button className="btn-primary" onClick={handleLogin} style={{ marginTop: "0.5rem" }}>Come in 🚪</button>
+      <div className="auth-wrap"><div className="empty-state"><div className="empty-icon">🌸</div><p>Loading…</p></div></div>
+    </div>
+  );
+
+  // ── Signup ────────────────────────────────────────────────────────────────
+  if (!user && authMode === "signup") return (
+    <div className="app-root">
+      <div className="auth-wrap">
+        <div className="auth-card">
+          <div className="auth-icon">🌸</div>
+          <h1 className="auth-title">Join the Corner</h1>
+          <p className="auth-sub">Create your account to join 2 States' Corner ✨</p>
+          <label className="form-label-left">Email</label>
+          <input className="input-field" type="email" placeholder="your@email.com" value={email}
+            onChange={e => { setEmail(e.target.value); setAuthError(""); }} />
+          <label className="form-label-left">Password</label>
+          <input className="input-field" type="password" placeholder="At least 6 characters" value={password}
+            onChange={e => { setPassword(e.target.value); setAuthError(""); }}
+            onKeyDown={e => e.key === "Enter" && handleSignup()} />
+          {authError && <p className="error-msg">{authError}</p>}
+          <button className="btn-primary" onClick={handleSignup} disabled={authSubmitting}>
+            {authSubmitting ? "Creating account…" : "Create account 🌸"}
+          </button>
+          <p className="auth-switch">Already have an account? <button onClick={() => { setAuthMode("login"); setAuthError(""); }}>Log in</button></p>
         </div>
       </div>
     </div>
   );
 
+  // ── Login ─────────────────────────────────────────────────────────────────
+  if (!user) return (
+    <div className="app-root">
+      <div className="auth-wrap">
+        <div className="auth-card">
+          <div className="auth-icon">🌸</div>
+          <h1 className="auth-title">2 States' Corner</h1>
+          <p className="auth-sub">Our private little world ✨</p>
+          <label className="form-label-left">Email</label>
+          <input className="input-field" type="email" placeholder="your@email.com" value={email}
+            onChange={e => { setEmail(e.target.value); setAuthError(""); }} />
+          <label className="form-label-left">Password</label>
+          <input className="input-field" type="password" placeholder="Your password" value={password}
+            onChange={e => { setPassword(e.target.value); setAuthError(""); }}
+            onKeyDown={e => e.key === "Enter" && handleLogin()} />
+          {authError && <p className="error-msg">{authError}</p>}
+          <button className="btn-primary" onClick={handleLogin} disabled={authSubmitting}>
+            {authSubmitting ? "Logging in…" : "Come in 🚪"}
+          </button>
+          <p className="auth-switch">New here? <button onClick={() => { setAuthMode("signup"); setAuthError(""); }}>Create an account</button></p>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── Profile setup ─────────────────────────────────────────────────────────
+  if (needsProfileSetup) return (
+    <div className="app-root">
+      <div className="profile-setup-wrap">
+        <div className="profile-setup-card">
+          <div className="avatar-big selected">{setupAvatar}</div>
+          <h1 className="profile-setup-title">Set up your profile</h1>
+          <p className="profile-setup-sub">Choose your name and a fun avatar so the girls know it's you! 🌸</p>
+
+          <p className="setup-section-label">Pick your avatar</p>
+          <div className="avatar-grid">
+            {AVATAR_EMOJIS.map(emoji => (
+              <button key={emoji} className={`avatar-option ${setupAvatar === emoji ? "active" : ""}`}
+                onClick={() => setSetupAvatar(emoji)}>
+                {emoji}
+              </button>
+            ))}
+          </div>
+
+          <p className="setup-section-label">What's your name?</p>
+          <div className="name-grid">
+            {MEMBERS.map(name => (
+              <button key={name} className={`name-option ${setupName === name ? "active" : ""}`}
+                onClick={() => setSetupName(name)}>
+                {name}
+              </button>
+            ))}
+          </div>
+
+          {setupError && <p className="error-msg">{setupError}</p>}
+          <button className="btn-primary" onClick={handleProfileSetup} disabled={!setupName || setupSubmitting}>
+            {setupSubmitting ? "Saving…" : "Let's go! 🎉"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── Main app ──────────────────────────────────────────────────────────────
   return (
     <div className="app-root">
       <header className="header">
         <div className="header-logo">2 States<span>'</span> Corner</div>
-        <button className="logout-btn" onClick={() => { sessionStorage.removeItem("girls_auth"); setAuthed(false); }}>Leave</button>
+        <div className="header-right">
+          {profile && (
+            <>
+              <div className="header-avatar">{profile.avatar || "🌸"}</div>
+              <span className="header-user">{profile.name}</span>
+            </>
+          )}
+          <button className="logout-btn" onClick={handleLogout}>Leave</button>
+        </div>
       </header>
 
       <main className="main">
-        {/* Create bar */}
         <div className="create-bar" onClick={() => openSheet()}>
-          <div className="create-avatar">🌸</div>
-          <div className="create-placeholder">Share something with the girls...</div>
+          <div className="create-avatar">{profile?.avatar || "🌸"}</div>
+          <div className="create-placeholder">Share something, {profile?.name?.split(" ")[0] || "girl"}...</div>
           <div className="create-actions">
             <button className="create-pill" onClick={e => { e.stopPropagation(); openSheet("upload"); }}>🎥 Upload video</button>
           </div>
         </div>
 
-        {/* Upload progress */}
         {uploadProgress !== null && (
           <div className="upload-progress">
             <span style={{ fontSize: "1.1rem" }}>⬆️</span>
@@ -325,7 +517,6 @@ export default function App() {
           </div>
         )}
 
-        {/* Feed */}
         {loadingFeed ? (
           <div className="empty-state"><div className="empty-icon">⏳</div><p className="empty-text">Loading…</p></div>
         ) : feed.length === 0 ? (
@@ -339,7 +530,7 @@ export default function App() {
               <div className="feed-card" key={`post-${item.id}`}>
                 <div className="card-header">
                   <div className="card-author">
-                    <div className="avatar">{item.name[0]}</div>
+                    <div className="avatar">{item.avatar || item.name[0]}</div>
                     <div>
                       <div className="author-name">{item.name}</div>
                       <div className="post-time">{timeAgo(item.created_at)}</div>
@@ -349,7 +540,7 @@ export default function App() {
                     <span className={`card-badge ${item.type === "win" ? "badge-win" : "badge-thought"}`}>
                       {item.type === "win" ? "🏆 win" : "💭 thought"}
                     </span>
-                    <button className="delete-btn" onClick={() => confirmDelete(item)}>🗑️</button>
+                    <button className="delete-btn" onClick={() => setDeleteTarget(item)}>🗑️</button>
                   </div>
                 </div>
                 <div className="card-content">{item.content}</div>
@@ -366,7 +557,7 @@ export default function App() {
                   </div>
                   <div className="card-right">
                     <span className="card-badge badge-video">🎥 video</span>
-                    <button className="delete-btn" onClick={() => confirmDelete(item)}>🗑️</button>
+                    <button className="delete-btn" onClick={() => setDeleteTarget(item)}>🗑️</button>
                   </div>
                 </div>
                 <video className="card-video" src={item.url} controls preload="metadata" playsInline />
@@ -381,7 +572,6 @@ export default function App() {
 
       <button className="fab" onClick={() => openSheet()}>+ Create post</button>
 
-      {/* Delete confirmation */}
       {deleteTarget && (
         <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setDeleteTarget(null)}>
           <div className="sheet" style={{ maxWidth: "380px" }}>
@@ -400,13 +590,10 @@ export default function App() {
         </div>
       )}
 
-      {/* Create sheet */}
       {showSheet && (
         <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && closeSheet()}>
           <div className="sheet">
             <div className="sheet-handle" />
-
-            {/* Choose mode */}
             {!sheetMode && (
               <>
                 <div className="sheet-title">
@@ -427,20 +614,11 @@ export default function App() {
                 </div>
               </>
             )}
-
-            {/* Write a post */}
             {sheetMode === "post" && (
               <>
                 <div className="sheet-title">
                   Share with the girls 💌
                   <button className="sheet-close" onClick={closeSheet}>✕</button>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Who are you?</label>
-                  <select className="select-field" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}>
-                    <option value="">Select your name...</option>
-                    {MEMBERS.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
                 </div>
                 <div className="form-group">
                   <label className="form-label">What is this?</label>
@@ -457,37 +635,26 @@ export default function App() {
                 </div>
                 <div className="sheet-actions">
                   <button className="btn-cancel" onClick={closeSheet}>Cancel</button>
-                  <button className="btn-submit" onClick={handlePostSubmit} disabled={!form.name || !form.content.trim() || submitting}>
+                  <button className="btn-submit" onClick={handlePostSubmit} disabled={!form.content.trim() || submitting}>
                     {submitting ? "Posting…" : "Post it ✨"}
                   </button>
                 </div>
               </>
             )}
-
-            {/* Upload video */}
             {sheetMode === "upload" && (
               <>
                 <div className="sheet-title">
                   Upload a video 🎥
                   <button className="sheet-close" onClick={closeSheet}>✕</button>
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Who are you?</label>
-                  <select className="select-field" value={uploaderName} onChange={e => setUploaderName(e.target.value)}>
-                    <option value="">Select your name...</option>
-                    {MEMBERS.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
-                </div>
                 <input ref={fileInputRef} type="file" accept="video/*" className="hidden-input" onChange={e => handleFileInput(e.target.files[0])} />
                 <div className={`upload-zone ${dragging ? "dragging" : ""}`}
                   onDragOver={e => { e.preventDefault(); setDragging(true); }}
                   onDragLeave={() => setDragging(false)}
                   onDrop={handleDrop}
-                  onClick={() => uploaderName && fileInputRef.current.click()}>
+                  onClick={() => fileInputRef.current.click()}>
                   <div className="upload-zone-icon">🎬</div>
-                  <p className="upload-zone-text">
-                    {uploaderName ? <><strong>Click to choose a video</strong> or drag & drop</> : "👆 Select your name above first!"}
-                  </p>
+                  <p className="upload-zone-text"><strong>Click to choose a video</strong> or drag & drop</p>
                   <p className="upload-zone-text" style={{ fontSize: "0.78rem", marginTop: "0.3rem" }}>MP4, MOV, AVI</p>
                 </div>
                 <button className="btn-cancel" style={{ width: "100%", marginTop: "0.5rem" }} onClick={closeSheet}>Cancel</button>
