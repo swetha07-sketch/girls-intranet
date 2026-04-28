@@ -415,18 +415,6 @@ const handleDelete = async () => {
   setDeleting(false); setDeleteTarget(null); loadFeed();
 };
 
-const uploadVideo = async (file) => {
-  const name = profile?.name || "Someone";
-  const ext = file.name.split(".").pop();
-  const fileName = `${name}_${Date.now()}.${ext}`;
-  closeSheet(); setUploadProgress(0);
-  const interval = setInterval(() => setUploadProgress(p => p < 85 ? p + Math.random() * 12 : p), 300);
-  await supabase.storage.from("videos").upload(fileName, file, { cacheControl: "3600", upsert: false });
-  clearInterval(interval); setUploadProgress(100);
-  await sendNotification(name, "video", "shared a video 🎥");
-  setTimeout(() => { setUploadProgress(null); loadFeed(); }, 900);
-};
-
 const handleFileInput = f => { if (f && f.type.startsWith("video/")) uploadVideo(f); };
 const handleDrop = e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f && f.type.startsWith("video/")) uploadVideo(f); };
 
