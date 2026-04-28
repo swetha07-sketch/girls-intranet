@@ -717,8 +717,6 @@ export default function App() {
                 <button className="btn-cancel" style={{ width: "100%", marginTop: "0.5rem" }} onClick={closeSheet}>Cancel</button>
               </>
             )}
-            </>
-            )}
           </div>
         </div>
       )}
