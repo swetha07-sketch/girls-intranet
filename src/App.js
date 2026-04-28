@@ -327,7 +327,6 @@ export default function App() {
 
     const { data: posts } = await supabase
       .from("posts").select("*").gte("created_at", sevenDaysAgo)
-      .order("created_at", { ascending: false });, lastWednesday)
       .order("created_at", { ascending: false });
 
   // fetch all profiles to build avatar lookup map
