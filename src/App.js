@@ -329,408 +329,409 @@ export default function App() {
       .from("posts").select("*").gte("created_at", sevenDaysAgo)
       .order("created_at", { ascending: false });
 
-  // fetch all profiles to build avatar lookup map
-  const { data: allProfiles } = await supabase.from("profiles").select("name, avatar");
-  const avatarMap = {};
-  (allProfiles || []).forEach(p => { avatarMap[p.name] = p.avatar || "🌸"; });
+    // fetch all profiles to build avatar lookup map
+    const { data: allProfiles } = await supabase.from("profiles").select("name, avatar");
+    const avatarMap = {};
+    (allProfiles || []).forEach(p => { avatarMap[p.name] = p.avatar || "🌸"; });
 
-  // fetch videos
-  const { data: files } = await supabase.storage.from("videos").list("", {
-    limit: 100, sortBy: { column: "created_at", order: "desc" }
-  });
-
-  const { data: allCaptions } = await supabase.from("video_captions").select("file_name, caption");
-  const captionMap = {};
-  (allCaptions || []).forEach(c => { captionMap[c.file_name] = c.caption; });
-
-  const freshVideos = (files || [])
-    .filter(f => f.name !== ".emptyFolderPlaceholder" && new Date(f.created_at) >= new Date(sevenDaysAgo))
-    .map(f => {
-      const uploaderName = f.name.split("_")[0];
-      return {
-        id: f.id,
-        itemType: "video",
-        name: uploaderName,
-        avatar: avatarMap[uploaderName] || "🌸", // ← avatar from profiles
-        created_at: f.created_at,
-        url: supabase.storage.from("videos").getPublicUrl(f.name).data.publicUrl,
-        fileName: f.name,
-        caption: captionMap[f.name] || "",
-      };
+    // fetch videos
+    const { data: files } = await supabase.storage.from("videos").list("", {
+      limit: 100, sortBy: { column: "created_at", order: "desc" }
     });
 
-  const postItems = (posts || []).map(p => ({
-    ...p,
-    itemType: "post",
-    avatar: avatarMap[p.name] || "🌸", // ← avatar from profiles
-  }));
+    const { data: allCaptions } = await supabase.from("video_captions").select("file_name, caption");
+    const captionMap = {};
+    (allCaptions || []).forEach(c => { captionMap[c.file_name] = c.caption; });
 
-  // merge and sort newest first
-  console.log("posts dates:", postItems.map(p => p.created_at));
-  console.log("video dates:", freshVideos.map(v => v.created_at));
-  const merged = [...postItems, ...freshVideos].sort((a, b) => {
-    const dateA = Date.parse(a.created_at);
-    const dateB = Date.parse(b.created_at);
-    return dateB - dateA;
-  });
-  console.log("merged feed order:", merged.map(i => ({ type: i.itemType, date: i.created_at })));
+    const freshVideos = (files || [])
+      .filter(f => f.name !== ".emptyFolderPlaceholder" && new Date(f.created_at) >= new Date(sevenDaysAgo))
+      .map(f => {
+        const uploaderName = f.name.split("_")[0];
+        return {
+          id: f.id,
+          itemType: "video",
+          name: uploaderName,
+          avatar: avatarMap[uploaderName] || "🌸", // ← avatar from profiles
+          created_at: f.created_at,
+          url: supabase.storage.from("videos").getPublicUrl(f.name).data.publicUrl,
+          fileName: f.name,
+          caption: captionMap[f.name] || "",
+        };
+      });
 
-  setFeed(merged);
-  setLoadingFeed(false);
-};
+    const postItems = (posts || []).map(p => ({
+      ...p,
+      itemType: "post",
+      avatar: avatarMap[p.name] || "🌸", // ← avatar from profiles
+    }));
 
-const openSheet = (mode = null) => { setSheetMode(mode); setShowSheet(true); };
-const closeSheet = () => {
-  setShowSheet(false);
-  setTimeout(() => { setSheetMode(null); setForm({ content: "", type: "win" }); }, 300);
-};
-
-const sendNotification = async (posterName, type, content) => {
-  try {
-    await fetch("/api/notify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ posterName, type, content, posterEmail: user.email }),
+    // merge and sort newest first
+    console.log("posts dates:", postItems.map(p => p.created_at));
+    console.log("video dates:", freshVideos.map(v => v.created_at));
+    const merged = [...postItems, ...freshVideos].sort((a, b) => {
+      const dateA = Date.parse(a.created_at);
+      const dateB = Date.parse(b.created_at);
+      return dateB - dateA;
     });
-  } catch (e) { console.log("Notification failed silently", e); }
-};
+    console.log("merged feed order:", merged.map(i => ({ type: i.itemType, date: i.created_at })));
 
-const handlePostSubmit = async () => {
-  if (!form.content.trim()) return;
-  setSubmitting(true);
-  const name = profile?.name || "Someone";
-  await supabase.from("posts").insert([{ name, content: form.content.trim(), type: form.type }]);
-  await sendNotification(name, form.type, form.content.trim());
-  setSubmitting(false); closeSheet(); loadFeed();
-};
+    setFeed(merged);
+    setLoadingFeed(false);
+  };
 
-const handleDelete = async () => {
-  if (!deleteTarget) return;
-  setDeleting(true);
-  if (deleteTarget.itemType === "post") {
-    await supabase.from("posts").delete().eq("id", deleteTarget.id);
-  } else {
-    await supabase.storage.from("videos").remove([deleteTarget.fileName]);
-  }
-  setDeleting(false); setDeleteTarget(null); loadFeed();
-};
+  const openSheet = (mode = null) => { setSheetMode(mode); setShowSheet(true); };
+  const closeSheet = () => {
+    setShowSheet(false);
+    setTimeout(() => { setSheetMode(null); setForm({ content: "", type: "win" }); }, 300);
+  };
 
-const handleFileInput = f => { if (f && f.type.startsWith("video/")) uploadVideo(f); };
-const handleDrop = e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f && f.type.startsWith("video/")) uploadVideo(f); };
+  const sendNotification = async (posterName, type, content) => {
+    try {
+      await fetch("/api/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ posterName, type, content, posterEmail: user.email }),
+      });
+    } catch (e) { console.log("Notification failed silently", e); }
+  };
 
-const urlBase64ToUint8Array = (base64String) => {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const rawData = window.atob(base64);
-  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
-};
+  const handlePostSubmit = async () => {
+    if (!form.content.trim()) return;
+    setSubmitting(true);
+    const name = profile?.name || "Someone";
+    await supabase.from("posts").insert([{ name, content: form.content.trim(), type: form.type }]);
+    await sendNotification(name, form.type, form.content.trim());
+    setSubmitting(false); closeSheet(); loadFeed();
+  };
 
-const uploadVideo = async (file) => {
-  const name = profile?.name || "Someone";
-  const ext = file.name.split(".").pop();
-  const fileName = `${name}_${Date.now()}.${ext}`;
-  const captionToSave = videoCaption.trim();
-  closeSheet();
-  setUploadProgress(0);
-  setVideoCaption("");
-  const interval = setInterval(() => setUploadProgress(p => p < 85 ? p + Math.random() * 12 : p), 300);
-  await supabase.storage.from("videos").upload(fileName, file, { cacheControl: "3600", upsert: false });
-  if (captionToSave) {
-    await supabase.from("video_captions").insert([{ file_name: fileName, caption: captionToSave }]);
-  }
-  clearInterval(interval);
-  setUploadProgress(100);
-  await sendNotification(name, "video", captionToSave || "shared a video 🎥");
-  setTimeout(() => { setUploadProgress(null); loadFeed(); }, 900);
-};
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    if (deleteTarget.itemType === "post") {
+      await supabase.from("posts").delete().eq("id", deleteTarget.id);
+    } else {
+      await supabase.storage.from("videos").remove([deleteTarget.fileName]);
+    }
+    setDeleting(false); setDeleteTarget(null); loadFeed();
+  };
 
-if (authLoading) return (
-  <div className="app-root">
-    <div className="auth-wrap"><div className="empty-state"><div className="empty-icon">🌸</div><p>Loading…</p></div></div>
-  </div>
-);
+  const handleFileInput = f => { if (f && f.type.startsWith("video/")) uploadVideo(f); };
+  const handleDrop = e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f && f.type.startsWith("video/")) uploadVideo(f); };
 
-if (!user && authMode === "signup") return (
-  <div className="app-root">
-    <div className="auth-wrap">
-      <div className="auth-card">
-        <div className="auth-icon">🌸</div>
-        <h1 className="auth-title">Join the Corner</h1>
-        <p className="auth-sub">Create your account to join 2 States' Corner ✨</p>
-        <label className="form-label-left">Invite code</label>
-        <input className="input-field" type="text" placeholder="Got the secret code?" value={inviteCode}
-          onChange={e => { setInviteCode(e.target.value); setAuthError(""); }} />
-        <label className="form-label-left">Email</label>
-        <input className="input-field" type="email" placeholder="your@email.com" value={email}
-          onChange={e => { setEmail(e.target.value); setAuthError(""); }} />
-        <label className="form-label-left">Password</label>
-        <input className="input-field" type="password" placeholder="At least 6 characters" value={password}
-          onChange={e => { setPassword(e.target.value); setAuthError(""); }}
-          onKeyDown={e => e.key === "Enter" && handleSignup()} />
-        {authError && <p className="error-msg">{authError}</p>}
-        <button className="btn-primary" onClick={handleSignup} disabled={authSubmitting}>
-          {authSubmitting ? "Creating account…" : "Create account 🌸"}
-        </button>
-        <p className="auth-switch">Already have an account? <button onClick={() => { setAuthMode("login"); setAuthError(""); }}>Log in</button></p>
-      </div>
+  const urlBase64ToUint8Array = (base64String) => {
+    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const rawData = window.atob(base64);
+    return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+  };
+
+  const uploadVideo = async (file) => {
+    const name = profile?.name || "Someone";
+    const ext = file.name.split(".").pop();
+    const fileName = `${name}_${Date.now()}.${ext}`;
+    const captionToSave = videoCaption.trim();
+    closeSheet();
+    setUploadProgress(0);
+    setVideoCaption("");
+    const interval = setInterval(() => setUploadProgress(p => p < 85 ? p + Math.random() * 12 : p), 300);
+    await supabase.storage.from("videos").upload(fileName, file, { cacheControl: "3600", upsert: false });
+    if (captionToSave) {
+      await supabase.from("video_captions").insert([{ file_name: fileName, caption: captionToSave }]);
+    }
+    clearInterval(interval);
+    setUploadProgress(100);
+    await sendNotification(name, "video", captionToSave || "shared a video 🎥");
+    setTimeout(() => { setUploadProgress(null); loadFeed(); }, 900);
+  };
+
+  if (authLoading) return (
+    <div className="app-root">
+      <div className="auth-wrap"><div className="empty-state"><div className="empty-icon">🌸</div><p>Loading…</p></div></div>
     </div>
-  </div>
-);
+  );
 
-if (!user) return (
-  <div className="app-root">
-    <div className="auth-wrap">
-      <div className="auth-card">
-        <div className="auth-icon">🌸</div>
-        <h1 className="auth-title">2 States' Corner</h1>
-        <p className="auth-sub">Our private little world ✨</p>
-        <label className="form-label-left">Email</label>
-        <input className="input-field" type="email" placeholder="your@email.com" value={email}
-          onChange={e => { setEmail(e.target.value); setAuthError(""); }} />
-        <label className="form-label-left">Password</label>
-        <input className="input-field" type="password" placeholder="Your password" value={password}
-          onChange={e => { setPassword(e.target.value); setAuthError(""); }}
-          onKeyDown={e => e.key === "Enter" && handleLogin()} />
-        {authError && <p className="error-msg">{authError}</p>}
-        <button className="btn-primary" onClick={handleLogin} disabled={authSubmitting}>
-          {authSubmitting ? "Logging in…" : "Come in 🚪"}
-        </button>
-        <p className="auth-switch">New here? <button onClick={() => { setAuthMode("signup"); setAuthError(""); }}>Create an account</button></p>
-      </div>
-    </div>
-  </div>
-);
-
-if (needsProfileSetup) return (
-  <div className="app-root">
-    <div className="profile-setup-wrap">
-      <div className="profile-setup-card">
-        <div className="avatar-big selected">{setupAvatar}</div>
-        <h1 className="profile-setup-title">Set up your profile</h1>
-        <p className="profile-setup-sub">Choose your name and a fun avatar so the girls know it's you! 🌸</p>
-        <p className="setup-section-label">Pick your avatar</p>
-        <div className="avatar-grid">
-          {AVATAR_EMOJIS.map(emoji => (
-            <button key={emoji} className={`avatar-option ${setupAvatar === emoji ? "active" : ""}`}
-              onClick={() => setSetupAvatar(emoji)}>{emoji}</button>
-          ))}
-        </div>
-        <p className="setup-section-label">What's your name?</p>
-        <div className="name-grid">
-          {MEMBERS.map(name => (
-            <button key={name} className={`name-option ${setupName === name ? "active" : ""}`}
-              onClick={() => setSetupName(name)}>{name}</button>
-          ))}
-        </div>
-        {setupError && <p className="error-msg">{setupError}</p>}
-        <button className="btn-primary" onClick={handleProfileSetup} disabled={!setupName || setupSubmitting}>
-          {setupSubmitting ? "Saving…" : "Let's go! 🎉"}
-        </button>
-      </div>
-    </div>
-  </div>
-);
-
-return (
-  <div className="app-root">
-    <header className="header">
-      <div className="header-logo">2 States<span>'</span> Corner</div>
-      <div className="header-right">
-        {profile && (
-          <>
-            <div className="header-avatar">{profile.avatar || "🌸"}</div>
-            <span className="header-user">{profile.name}</span>
-          </>
-        )}
-        {pushPermission !== "granted" && (
-          <button
-            className="logout-btn"
-            onClick={enablePushNotifications}
-            title="Enable push notifications"
-            style={{ borderColor: "#c97b6e", color: "#c97b6e" }}
-          >
-            🔔 Enable
+  if (!user && authMode === "signup") return (
+    <div className="app-root">
+      <div className="auth-wrap">
+        <div className="auth-card">
+          <div className="auth-icon">🌸</div>
+          <h1 className="auth-title">Join the Corner</h1>
+          <p className="auth-sub">Create your account to join 2 States' Corner ✨</p>
+          <label className="form-label-left">Invite code</label>
+          <input className="input-field" type="text" placeholder="Got the secret code?" value={inviteCode}
+            onChange={e => { setInviteCode(e.target.value); setAuthError(""); }} />
+          <label className="form-label-left">Email</label>
+          <input className="input-field" type="email" placeholder="your@email.com" value={email}
+            onChange={e => { setEmail(e.target.value); setAuthError(""); }} />
+          <label className="form-label-left">Password</label>
+          <input className="input-field" type="password" placeholder="At least 6 characters" value={password}
+            onChange={e => { setPassword(e.target.value); setAuthError(""); }}
+            onKeyDown={e => e.key === "Enter" && handleSignup()} />
+          {authError && <p className="error-msg">{authError}</p>}
+          <button className="btn-primary" onClick={handleSignup} disabled={authSubmitting}>
+            {authSubmitting ? "Creating account…" : "Create account 🌸"}
           </button>
+          <p className="auth-switch">Already have an account? <button onClick={() => { setAuthMode("login"); setAuthError(""); }}>Log in</button></p>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (!user) return (
+    <div className="app-root">
+      <div className="auth-wrap">
+        <div className="auth-card">
+          <div className="auth-icon">🌸</div>
+          <h1 className="auth-title">2 States' Corner</h1>
+          <p className="auth-sub">Our private little world ✨</p>
+          <label className="form-label-left">Email</label>
+          <input className="input-field" type="email" placeholder="your@email.com" value={email}
+            onChange={e => { setEmail(e.target.value); setAuthError(""); }} />
+          <label className="form-label-left">Password</label>
+          <input className="input-field" type="password" placeholder="Your password" value={password}
+            onChange={e => { setPassword(e.target.value); setAuthError(""); }}
+            onKeyDown={e => e.key === "Enter" && handleLogin()} />
+          {authError && <p className="error-msg">{authError}</p>}
+          <button className="btn-primary" onClick={handleLogin} disabled={authSubmitting}>
+            {authSubmitting ? "Logging in…" : "Come in 🚪"}
+          </button>
+          <p className="auth-switch">New here? <button onClick={() => { setAuthMode("signup"); setAuthError(""); }}>Create an account</button></p>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (needsProfileSetup) return (
+    <div className="app-root">
+      <div className="profile-setup-wrap">
+        <div className="profile-setup-card">
+          <div className="avatar-big selected">{setupAvatar}</div>
+          <h1 className="profile-setup-title">Set up your profile</h1>
+          <p className="profile-setup-sub">Choose your name and a fun avatar so the girls know it's you! 🌸</p>
+          <p className="setup-section-label">Pick your avatar</p>
+          <div className="avatar-grid">
+            {AVATAR_EMOJIS.map(emoji => (
+              <button key={emoji} className={`avatar-option ${setupAvatar === emoji ? "active" : ""}`}
+                onClick={() => setSetupAvatar(emoji)}>{emoji}</button>
+            ))}
+          </div>
+          <p className="setup-section-label">What's your name?</p>
+          <div className="name-grid">
+            {MEMBERS.map(name => (
+              <button key={name} className={`name-option ${setupName === name ? "active" : ""}`}
+                onClick={() => setSetupName(name)}>{name}</button>
+            ))}
+          </div>
+          {setupError && <p className="error-msg">{setupError}</p>}
+          <button className="btn-primary" onClick={handleProfileSetup} disabled={!setupName || setupSubmitting}>
+            {setupSubmitting ? "Saving…" : "Let's go! 🎉"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="app-root">
+      <header className="header">
+        <div className="header-logo">2 States<span>'</span> Corner</div>
+        <div className="header-right">
+          {profile && (
+            <>
+              <div className="header-avatar">{profile.avatar || "🌸"}</div>
+              <span className="header-user">{profile.name}</span>
+            </>
+          )}
+          {pushPermission !== "granted" && (
+            <button
+              className="logout-btn"
+              onClick={enablePushNotifications}
+              title="Enable push notifications"
+              style={{ borderColor: "#c97b6e", color: "#c97b6e" }}
+            >
+              🔔 Enable
+            </button>
+          )}
+          <button className="logout-btn" onClick={handleLogout}>Leave</button>
+        </div>
+      </header>
+
+      <main className="main">
+        <div className="create-bar" onClick={() => openSheet()}>
+          <div className="create-avatar">{profile?.avatar || "🌸"}</div>
+          <div className="create-placeholder">Share something, {profile?.name?.split(" ")[0] || "girl"}...</div>
+          <div className="create-actions">
+            <button className="create-pill" onClick={e => { e.stopPropagation(); openSheet("upload"); }}>🎥 Upload video</button>
+          </div>
+        </div>
+
+        {uploadProgress !== null && (
+          <div className="upload-progress">
+            <span style={{ fontSize: "1.1rem" }}>⬆️</span>
+            <div className="progress-bar-wrap"><div className="progress-bar" style={{ width: `${uploadProgress}%` }} /></div>
+            <span className="progress-text">{uploadProgress < 100 ? `${Math.round(uploadProgress)}%` : "Posted! 🎉"}</span>
+          </div>
         )}
-        <button className="logout-btn" onClick={handleLogout}>Leave</button>
-      </div>
-    </header>
 
-    <main className="main">
-      <div className="create-bar" onClick={() => openSheet()}>
-        <div className="create-avatar">{profile?.avatar || "🌸"}</div>
-        <div className="create-placeholder">Share something, {profile?.name?.split(" ")[0] || "girl"}...</div>
-        <div className="create-actions">
-          <button className="create-pill" onClick={e => { e.stopPropagation(); openSheet("upload"); }}>🎥 Upload video</button>
-        </div>
-      </div>
-
-      {uploadProgress !== null && (
-        <div className="upload-progress">
-          <span style={{ fontSize: "1.1rem" }}>⬆️</span>
-          <div className="progress-bar-wrap"><div className="progress-bar" style={{ width: `${uploadProgress}%` }} /></div>
-          <span className="progress-text">{uploadProgress < 100 ? `${Math.round(uploadProgress)}%` : "Posted! 🎉"}</span>
-        </div>
-      )}
-
-      {loadingFeed ? (
-        <div className="empty-state"><div className="empty-icon">⏳</div><p className="empty-text">Loading…</p></div>
-      ) : feed.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-icon">🌷</div>
-          <p className="empty-text">Nothing yet this week! Be the first to post something ✨</p>
-        </div>
-      ) : (
-        <div className="feed">
-          {feed.map(item => (
-            <div className="feed-card" key={`${item.itemType}-${item.id}`}>
-              <div className="card-header">
-                <div className="card-author">
-                  {/* ── Avatar: always uses emoji from profiles ── */}
-                  <div className="avatar">{item.avatar || "🌸"}</div>
-                  <div>
-                    <div className="author-name">{item.name}</div>
-                    <div className="post-time">{timeAgo(item.created_at)}</div>
+        {loadingFeed ? (
+          <div className="empty-state"><div className="empty-icon">⏳</div><p className="empty-text">Loading…</p></div>
+        ) : feed.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-icon">🌷</div>
+            <p className="empty-text">Nothing yet this week! Be the first to post something ✨</p>
+          </div>
+        ) : (
+          <div className="feed">
+            {feed.map(item => (
+              <div className="feed-card" key={`${item.itemType}-${item.id}`}>
+                <div className="card-header">
+                  <div className="card-author">
+                    {/* ── Avatar: always uses emoji from profiles ── */}
+                    <div className="avatar">{item.avatar || "🌸"}</div>
+                    <div>
+                      <div className="author-name">{item.name}</div>
+                      <div className="post-time">{timeAgo(item.created_at)}</div>
+                    </div>
+                  </div>
+                  <div className="card-right">
+                    {item.itemType === "post" ? (
+                      <span className={`card-badge ${item.type === "win" ? "badge-win" : "badge-thought"}`}>
+                        {item.type === "win" ? "🏆 win" : "💭 thought"}
+                      </span>
+                    ) : (
+                      <span className="card-badge badge-video">🎥 video</span>
+                    )}
+                    <button className="delete-btn" onClick={() => setDeleteTarget(item)}>🗑️</button>
                   </div>
                 </div>
-                <div className="card-right">
-                  {item.itemType === "post" ? (
-                    <span className={`card-badge ${item.type === "win" ? "badge-win" : "badge-thought"}`}>
-                      {item.type === "win" ? "🏆 win" : "💭 thought"}
-                    </span>
-                  ) : (
-                    <span className="card-badge badge-video">🎥 video</span>
-                  )}
-                  <button className="delete-btn" onClick={() => setDeleteTarget(item)}>🗑️</button>
-                </div>
+                {item.itemType === "post" ? (
+                  <div className="card-content">{item.content}</div>
+                ) : (
+                  <>
+                    {item.caption && <div className="card-content" style={{ paddingBottom: "0.6rem" }}>{item.caption}</div>}
+                    <video className="card-video" src={item.url} controls preload="metadata" playsInline />
+                    <div className="card-video-footer">
+                      <span className="video-expiry-tag">⏳ {expiresIn(item.created_at)}</span>
+                    </div>
+                  </>
+                )}
               </div>
-              {item.itemType === "post" ? (
-                <div className="card-content">{item.content}</div>
-              ) : (
-                <>
-                  {item.caption && <div className="card-content" style={{ paddingBottom: "0.6rem" }}>{item.caption}</div>}
-                  <video className="card-video" src={item.url} controls preload="metadata" playsInline />
-                  <div className="card-video-footer">
-                    <span className="video-expiry-tag">⏳ {expiresIn(item.created_at)}</span>
-                  </div>
-                </>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </main>
+            ))}
+          </div>
+        )}
+      </main>
 
-    <button className="fab" onClick={() => openSheet()}>+ Create post</button>
+      <button className="fab" onClick={() => openSheet()}>+ Create post</button>
 
-    {deleteTarget && (
-      <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setDeleteTarget(null)}>
-        <div className="sheet" style={{ maxWidth: "380px" }}>
-          <div className="confirm-dialog">
-            <div className="confirm-icon">🗑️</div>
-            <p className="confirm-msg">Delete this {deleteTarget.itemType}?</p>
-            <p className="confirm-sub">This can't be undone — it'll be gone for everyone!</p>
-            <div className="confirm-actions">
-              <button className="btn-cancel" onClick={() => setDeleteTarget(null)}>Keep it</button>
-              <button className="btn-danger" onClick={handleDelete} disabled={deleting}>
-                {deleting ? "Deleting…" : "Yes, delete"}
-              </button>
+      {deleteTarget && (
+        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setDeleteTarget(null)}>
+          <div className="sheet" style={{ maxWidth: "380px" }}>
+            <div className="confirm-dialog">
+              <div className="confirm-icon">🗑️</div>
+              <p className="confirm-msg">Delete this {deleteTarget.itemType}?</p>
+              <p className="confirm-sub">This can't be undone — it'll be gone for everyone!</p>
+              <div className="confirm-actions">
+                <button className="btn-cancel" onClick={() => setDeleteTarget(null)}>Keep it</button>
+                <button className="btn-danger" onClick={handleDelete} disabled={deleting}>
+                  {deleting ? "Deleting…" : "Yes, delete"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    )}
+      )}
 
-    {showSheet && (
-      <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && closeSheet()}>
-        <div className="sheet">
-          <div className="sheet-handle" />
-          {!sheetMode && (
-            <>
-              <div className="sheet-title">
-                What do you want to share? 🌸
-                <button className="sheet-close" onClick={closeSheet}>✕</button>
-              </div>
-              <div className="mode-options">
-                <button className="mode-btn" onClick={() => setSheetMode("post")}>
-                  <div className="mode-icon">✍️</div>
-                  <div className="mode-label">Write a post</div>
-                  <div className="mode-sub">Win or thought</div>
-                </button>
-                <button className="mode-btn" onClick={() => setSheetMode("upload")}>
-                  <div className="mode-icon">🎥</div>
-                  <div className="mode-label">Upload a video</div>
-                  <div className="mode-sub">From your phone</div>
-                </button>
-              </div>
-            </>
-          )}
-          {sheetMode === "post" && (
-            <>
-              <div className="sheet-title">
-                Share with the girls 💌
-                <button className="sheet-close" onClick={closeSheet}>✕</button>
-              </div>
-              <div className="form-group">
-                <label className="form-label">What is this?</label>
-                <div className="type-pills">
-                  <button className={`pill win ${form.type === "win" ? "active" : ""}`} onClick={() => setForm({ ...form, type: "win" })}>🏆 Win of the day</button>
-                  <button className={`pill thought ${form.type === "thought" ? "active" : ""}`} onClick={() => setForm({ ...form, type: "thought" })}>💭 Random thought</button>
+      {showSheet && (
+        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && closeSheet()}>
+          <div className="sheet">
+            <div className="sheet-handle" />
+            {!sheetMode && (
+              <>
+                <div className="sheet-title">
+                  What do you want to share? 🌸
+                  <button className="sheet-close" onClick={closeSheet}>✕</button>
                 </div>
-              </div>
-              <div className="form-group">
-                <label className="form-label">{form.type === "win" ? "What did you win at?" : "What's on your mind?"}</label>
-                <textarea className="textarea-field"
-                  placeholder={form.type === "win" ? "I finally finished that thing I've been putting off..." : "Does anyone else think about..."}
-                  value={form.content} onChange={e => setForm({ ...form, content: e.target.value })} />
-              </div>
-              <div className="sheet-actions">
-                <button className="btn-cancel" onClick={closeSheet}>Cancel</button>
-                <button className="btn-submit" onClick={handlePostSubmit} disabled={!form.content.trim() || submitting}>
-                  {submitting ? "Posting…" : "Post it ✨"}
-                </button>
-              </div>
-            </>
-          )}
-          {sheetMode === "upload" && (
-            <>
-              <div className="sheet-title">
-                Upload a video 🎥
-                <button className="sheet-close" onClick={closeSheet}>✕</button>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Caption (optional)</label>
-                <textarea className="textarea-field" style={{ minHeight: "70px" }}
-                  placeholder="Add a caption to your video..."
-                  value={videoCaption} onChange={e => setVideoCaption(e.target.value)} />
-              </div>
-              <input ref={fileInputRef} type="file" accept="video/*" className="hidden-input" onChange={e => handleFileInput(e.target.files[0])} />
-              <div className={`upload-zone ${dragging ? "dragging" : ""}`}
-                onDragOver={e => { e.preventDefault(); setDragging(true); }}
-                onDragLeave={() => setDragging(false)}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current.click()}>
-                <div className="upload-zone-icon">🎬</div>
-                <p className="upload-zone-text"><strong>Click to choose a video</strong> or drag & drop</p>
-                <p className="upload-zone-text" style={{ fontSize: "0.78rem", marginTop: "0.3rem" }}>MP4, MOV, AVI</p>
-              </div>
-              <button className="btn-cancel" style={{ width: "100%", marginTop: "0.5rem" }} onClick={closeSheet}>Cancel</button>
-            </>
-          )}
-          onDragOver={e => { e.preventDefault(); setDragging(true); }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current.click()}>
-          <div className="upload-zone-icon">🎬</div>
-          <p className="upload-zone-text"><strong>Click to choose a video</strong> or drag & drop</p>
-          <p className="upload-zone-text" style={{ fontSize: "0.78rem", marginTop: "0.3rem" }}>MP4, MOV, AVI</p>
-        </div>
-        <button className="btn-cancel" style={{ width: "100%", marginTop: "0.5rem" }} onClick={closeSheet}>Cancel</button>
-      </>
-    )}
-  </div>
+                <div className="mode-options">
+                  <button className="mode-btn" onClick={() => setSheetMode("post")}>
+                    <div className="mode-icon">✍️</div>
+                    <div className="mode-label">Write a post</div>
+                    <div className="mode-sub">Win or thought</div>
+                  </button>
+                  <button className="mode-btn" onClick={() => setSheetMode("upload")}>
+                    <div className="mode-icon">🎥</div>
+                    <div className="mode-label">Upload a video</div>
+                    <div className="mode-sub">From your phone</div>
+                  </button>
+                </div>
+              </>
+            )}
+            {sheetMode === "post" && (
+              <>
+                <div className="sheet-title">
+                  Share with the girls 💌
+                  <button className="sheet-close" onClick={closeSheet}>✕</button>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">What is this?</label>
+                  <div className="type-pills">
+                    <button className={`pill win ${form.type === "win" ? "active" : ""}`} onClick={() => setForm({ ...form, type: "win" })}>🏆 Win of the day</button>
+                    <button className={`pill thought ${form.type === "thought" ? "active" : ""}`} onClick={() => setForm({ ...form, type: "thought" })}>💭 Random thought</button>
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">{form.type === "win" ? "What did you win at?" : "What's on your mind?"}</label>
+                  <textarea className="textarea-field"
+                    placeholder={form.type === "win" ? "I finally finished that thing I've been putting off..." : "Does anyone else think about..."}
+                    value={form.content} onChange={e => setForm({ ...form, content: e.target.value })} />
+                </div>
+                <div className="sheet-actions">
+                  <button className="btn-cancel" onClick={closeSheet}>Cancel</button>
+                  <button className="btn-submit" onClick={handlePostSubmit} disabled={!form.content.trim() || submitting}>
+                    {submitting ? "Posting…" : "Post it ✨"}
+                  </button>
+                </div>
+              </>
+            )}
+            {sheetMode === "upload" && (
+              <>
+                <div className="sheet-title">
+                  Upload a video 🎥
+                  <button className="sheet-close" onClick={closeSheet}>✕</button>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Caption (optional)</label>
+                  <textarea className="textarea-field" style={{ minHeight: "70px" }}
+                    placeholder="Add a caption to your video..."
+                    value={videoCaption} onChange={e => setVideoCaption(e.target.value)} />
+                </div>
+                <input ref={fileInputRef} type="file" accept="video/*" className="hidden-input" onChange={e => handleFileInput(e.target.files[0])} />
+                <div className={`upload-zone ${dragging ? "dragging" : ""}`}
+                  onDragOver={e => { e.preventDefault(); setDragging(true); }}
+                  onDragLeave={() => setDragging(false)}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current.click()}>
+                  <div className="upload-zone-icon">🎬</div>
+                  <p className="upload-zone-text"><strong>Click to choose a video</strong> or drag & drop</p>
+                  <p className="upload-zone-text" style={{ fontSize: "0.78rem", marginTop: "0.3rem" }}>MP4, MOV, AVI</p>
+                </div>
+                <button className="btn-cancel" style={{ width: "100%", marginTop: "0.5rem" }} onClick={closeSheet}>Cancel</button>
+              </>
+            )}
+            onDragOver={e => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current.click()}>
+            <div className="upload-zone-icon">🎬</div>
+            <p className="upload-zone-text"><strong>Click to choose a video</strong> or drag & drop</p>
+            <p className="upload-zone-text" style={{ fontSize: "0.78rem", marginTop: "0.3rem" }}>MP4, MOV, AVI</p>
+          </div>
+          <button className="btn-cancel" style={{ width: "100%", marginTop: "0.5rem" }} onClick={closeSheet}>Cancel</button>
+        </>
+      )}
+    </div>
       </div >
-    )}
+    )
+}
   </div >
 );
 }
