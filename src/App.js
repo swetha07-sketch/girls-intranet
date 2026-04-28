@@ -10,16 +10,6 @@ const MEMBERS = ["Farida", "Meghavi", "Prakruti", "Pulak", "Swetha"];
 
 const INVITE_CODE = process.env.REACT_APP_INVITE_CODE;
 
-const getLastWednesday = () => {
-  const now = new Date();
-  const day = now.getDay();
-  const daysBack = day >= 3 ? day - 3 : day + 4;
-  const lastWed = new Date(now);
-  lastWed.setDate(now.getDate() - daysBack);
-  lastWed.setHours(0, 0, 0, 0);
-  return lastWed;
-};
-
 const timeAgo = (ts) => {
   const diff = Date.now() - new Date(ts).getTime();
   const m = Math.floor(diff / 60000);
