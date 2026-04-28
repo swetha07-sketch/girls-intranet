@@ -717,21 +717,11 @@ export default function App() {
                 <button className="btn-cancel" style={{ width: "100%", marginTop: "0.5rem" }} onClick={closeSheet}>Cancel</button>
               </>
             )}
-            onDragOver={e => { e.preventDefault(); setDragging(true); }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current.click()}>
-            <div className="upload-zone-icon">🎬</div>
-            <p className="upload-zone-text"><strong>Click to choose a video</strong> or drag & drop</p>
-            <p className="upload-zone-text" style={{ fontSize: "0.78rem", marginTop: "0.3rem" }}>MP4, MOV, AVI</p>
+            </>
+            )}
           </div>
-          <button className="btn-cancel" style={{ width: "100%", marginTop: "0.5rem" }} onClick={closeSheet}>Cancel</button>
-        </>
+        </div>
       )}
     </div>
-      </div >
-    )
-}
-  </div >
-);
+  );
 }
