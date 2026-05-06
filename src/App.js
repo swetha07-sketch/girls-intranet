@@ -29,6 +29,71 @@ const expiresIn = (ts) => {
   return `${Math.floor(h / 24)}d left`;
 };
 
+const compressVideo = (file, onProgress) => {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.muted = true;
+    video.playsInline = true;
+    
+    video.onloadedmetadata = async () => {
+      try {
+        const canvas = document.createElement("canvas");
+        // Scale down to max 720p
+        const maxDim = 1280;
+        let w = video.videoWidth, h = video.videoHeight;
+        if (w > maxDim || h > maxDim) {
+          const scale = maxDim / Math.max(w, h);
+          w = Math.round(w * scale);
+          h = Math.round(h * scale);
+        }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        
+        const stream = canvas.captureStream(30);
+        // Add audio from original
+        const videoEl = video;
+        const audioStream = videoEl.captureStream ? videoEl.captureStream() : null;
+        if (audioStream) {
+          audioStream.getAudioTracks().forEach(t => stream.addTrack(t));
+        }
+        
+        const recorder = new MediaRecorder(stream, {
+          mimeType: "video/webm;codecs=vp8,opus",
+          videoBitsPerSecond: 1500000, // 1.5 Mbps
+        });
+        
+        const chunks = [];
+        recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+        recorder.onstop = () => {
+          const blob = new Blob(chunks, { type: "video/webm" });
+          resolve(new File([blob], file.name.replace(/\.[^.]+$/, ".webm"), { type: "video/webm" }));
+        };
+        
+        recorder.start();
+        video.play();
+        
+        const drawFrame = () => {
+          if (!video.ended && !video.paused) {
+            ctx.drawImage(video, 0, 0, w, h);
+            if (onProgress && video.duration) onProgress(Math.min(95, (video.currentTime / video.duration) * 100));
+            requestAnimationFrame(drawFrame);
+          } else {
+            recorder.stop();
+          }
+        };
+        drawFrame();
+      } catch (err) {
+        reject(err);
+      }
+    };
+    
+    video.onerror = () => reject(new Error("Failed to load video"));
+    video.src = URL.createObjectURL(file);
+  });
+};
+
 const AVATAR_EMOJIS = ["🌸", "🌺", "🦋", "🌙", "⭐", "🌈", "🍓", "🌻", "🦄", "💫", "🌷", "🍒"];
 
 const styleTag = document.createElement("style");
@@ -480,19 +545,40 @@ loadComments();
 
   const uploadMedia = async (file) => {
     const name = profile?.name || "Someone";
-    const ext = file.name.split(".").pop().toLowerCase();
     const isImage = file.type.startsWith("image/");
-    const fileName = `${name}_${Date.now()}.${ext}`;
     const captionToSave = videoCaption.trim();
     closeSheet();
-    setUploadProgress(0);
     setVideoCaption("");
-    const interval = setInterval(() => setUploadProgress(p => p < 85 ? p + Math.random() * 12 : p), 300);
-    await supabase.storage.from("videos").upload(fileName, file, { cacheControl: "3600", upsert: false });
+    setUploadProgress(0);
+
+    // Compress videos over 30MB
+    let finalFile = file;
+    if (!isImage && file.size > 30 * 1024 * 1024) {
+      try {
+        finalFile = await compressVideo(file, (pct) => setUploadProgress(pct * 0.5)); // first 50% is compression
+      } catch (e) {
+        console.error("Compression failed, uploading original", e);
+        finalFile = file;
+      }
+    }
+
+    const ext = finalFile.name.split(".").pop().toLowerCase();
+    const fileName = `${name}_${Date.now()}.${ext}`;
+
+    const interval = setInterval(() => setUploadProgress(p => p < 95 ? p + Math.random() * 4 : p), 300);
+    const { error } = await supabase.storage.from("videos").upload(fileName, finalFile, { cacheControl: "3600", upsert: false });
+    clearInterval(interval);
+
+    if (error) {
+      setUploadProgress(null);
+      alert(`Upload failed: ${error.message}`);
+      return;
+    }
+
     if (captionToSave) {
       await supabase.from("media_captions").insert([{ file_name: fileName, caption: captionToSave }]);
     }
-    clearInterval(interval);
+
     setUploadProgress(100);
     await sendNotification(name, isImage ? "photo" : "video", captionToSave || (isImage ? "shared a photo 📷" : "shared a video 🎥"));
     setTimeout(() => { setUploadProgress(null); loadFeed(); }, 900);
