@@ -182,6 +182,28 @@ styleTag.textContent = `
     .auth-card, .profile-setup-card { padding: 2rem 1.5rem; }
     .avatar-grid { grid-template-columns: repeat(4, 1fr); }
   }
+
+  .comment-toggle { background: none; border: none; cursor: pointer; color: var(--taupe); font-size: 0.85rem; padding: 0.25rem 0.6rem; border-radius: 8px; transition: all 0.15s; display: flex; align-items: center; gap: 0.3rem; font-family: 'DM Sans', sans-serif; }
+.comment-toggle:hover { color: var(--rose); background: #fdf0ec; }
+.comments-section { padding: 0.5rem 1.3rem 1rem; border-top: 1px solid var(--border); background: #fdfaf6; }
+.comment-item { display: flex; gap: 0.6rem; padding: 0.7rem 0; border-bottom: 1px dashed var(--border); }
+.comment-item:last-child { border-bottom: none; }
+.comment-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--blush); display: flex; align-items: center; justify-content: center; font-size: 0.95rem; flex-shrink: 0; }
+.comment-body { flex: 1; }
+.comment-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.15rem; }
+.comment-author { font-size: 0.85rem; font-weight: 500; color: var(--brown); }
+.comment-time { font-size: 0.72rem; color: var(--taupe); }
+.comment-content { font-size: 0.9rem; color: var(--text); line-height: 1.4; }
+.comment-delete { background: none; border: none; color: var(--taupe); cursor: pointer; font-size: 0.75rem; padding: 0 0.3rem; opacity: 0.5; transition: opacity 0.15s; }
+.comment-delete:hover { opacity: 1; color: #e53e3e; }
+.comment-input-wrap { display: flex; gap: 0.5rem; padding-top: 0.7rem; align-items: flex-end; }
+.comment-input { flex: 1; padding: 0.55rem 0.85rem; border: 1.5px solid var(--border); border-radius: 999px; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; background: white; color: var(--text); outline: none; resize: none; min-height: 36px; max-height: 80px; }
+.comment-input:focus { border-color: var(--rose); }
+.comment-send-btn { padding: 0.5rem 1rem; background: var(--rose); color: white; border: none; border-radius: 999px; font-family: 'DM Sans', sans-serif; font-size: 0.85rem; font-weight: 500; cursor: pointer; }
+.comment-send-btn:hover { background: var(--rose-dark); }
+.comment-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.comments-empty { text-align: center; padding: 0.8rem 0; font-size: 0.85rem; color: var(--taupe); }
+
 `;
 document.head.appendChild(styleTag);
 
@@ -209,6 +231,10 @@ export default function App() {
   const [submitting, setSubmitting] = useState(false);
   const [dragging, setDragging] = useState(false);
   const fileInputRef = useRef();
+  const [commentsByPost, setCommentsByPost] = useState({});
+  const [openComments, setOpenComments] = useState(null); // which item's comments are open
+  const [commentText, setCommentText] = useState("");
+  const [submittingComment, setSubmittingComment] = useState(false);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -232,7 +258,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (user) { loadProfile(); loadFeed(); }
+    if (user) { loadProfile(); loadFeed(); loadComments(); }
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -329,19 +355,21 @@ export default function App() {
       limit: 100, sortBy: { column: "created_at", order: "desc" }
     });
 
-    const { data: allCaptions } = await supabase.from("video_captions").select("file_name, caption");
+    const { data: allCaptions } = await supabase.from("media_captions").select("file_name, caption");
     const captionMap = {};
     (allCaptions || []).forEach(c => { captionMap[c.file_name] = c.caption; });
 
-    const freshVideos = (files || [])
+    const freshMedia = (files || [])
       .filter(f => f.name !== ".emptyFolderPlaceholder" && new Date(f.created_at) >= new Date(sevenDaysAgo))
       .map(f => {
         const uploaderName = f.name.split("_")[0];
+        const ext = f.name.split(".").pop().toLowerCase();
+        const isImage = ["jpg", "jpeg", "png", "gif", "webp", "heic"].includes(ext);
         return {
           id: f.id,
-          itemType: "video",
+          itemType: isImage ? "photo" : "video",
           name: uploaderName,
-          avatar: avatarMap[uploaderName] || "🌸", // ← avatar from profiles
+          avatar: avatarMap[uploaderName] || "🌸",
           created_at: f.created_at,
           url: supabase.storage.from("videos").getPublicUrl(f.name).data.publicUrl,
           fileName: f.name,
@@ -357,8 +385,8 @@ export default function App() {
 
     // merge and sort newest first
     console.log("posts dates:", postItems.map(p => p.created_at));
-    console.log("video dates:", freshVideos.map(v => v.created_at));
-    const merged = [...postItems, ...freshVideos].sort((a, b) => {
+    console.log("video dates:", freshMedia.map(v => v.created_at));
+    const merged = [...postItems, ...freshMedia].sort((a, b) => {
       const dateA = Date.parse(a.created_at);
       const dateB = Date.parse(b.created_at);
       return dateB - dateA;
@@ -366,8 +394,9 @@ export default function App() {
     console.log("merged feed order:", merged.map(i => ({ type: i.itemType, date: i.created_at })));
 
     setFeed(merged);
-    setLoadingFeed(false);
-  };
+setLoadingFeed(false);
+loadComments();
+};
 
   const openSheet = (mode = null) => { setSheetMode(mode); setShowSheet(true); };
   const closeSheet = () => {
@@ -405,8 +434,8 @@ export default function App() {
     setDeleting(false); setDeleteTarget(null); loadFeed();
   };
 
-  const handleFileInput = f => { if (f && f.type.startsWith("video/")) uploadVideo(f); };
-  const handleDrop = e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f && f.type.startsWith("video/")) uploadVideo(f); };
+  const handleFileInput = f => { if (f && (f.type.startsWith("video/") || f.type.startsWith("image/"))) uploadMedia(f); };
+  const handleDrop = e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f && (f.type.startsWith("video/") || f.type.startsWith("image/"))) uploadMedia(f); };
 
   const urlBase64ToUint8Array = (base64String) => {
     const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -415,9 +444,44 @@ export default function App() {
     return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
   };
 
-  const uploadVideo = async (file) => {
+  const loadComments = async () => {
+    const { data } = await supabase
+      .from("comments")
+      .select("*")
+      .order("created_at", { ascending: true });
+    const grouped = {};
+    (data || []).forEach(c => {
+      const key = `${c.parent_type}-${c.parent_id}`;
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(c);
+    });
+    setCommentsByPost(grouped);
+  };
+
+  const handleCommentSubmit = async (item) => {
+    if (!commentText.trim()) return;
+    setSubmittingComment(true);
+    await supabase.from("comments").insert([{
+      parent_type: item.itemType,
+      parent_id: String(item.id),
+      author_name: profile?.name || "Someone",
+      author_avatar: profile?.avatar || "🌸",
+      content: commentText.trim(),
+    }]);
+    setCommentText("");
+    setSubmittingComment(false);
+    loadComments();
+  };
+
+  const handleDeleteComment = async (id) => {
+    await supabase.from("comments").delete().eq("id", id);
+    loadComments();
+  };
+
+  const uploadMedia = async (file) => {
     const name = profile?.name || "Someone";
-    const ext = file.name.split(".").pop();
+    const ext = file.name.split(".").pop().toLowerCase();
+    const isImage = file.type.startsWith("image/");
     const fileName = `${name}_${Date.now()}.${ext}`;
     const captionToSave = videoCaption.trim();
     closeSheet();
@@ -426,11 +490,11 @@ export default function App() {
     const interval = setInterval(() => setUploadProgress(p => p < 85 ? p + Math.random() * 12 : p), 300);
     await supabase.storage.from("videos").upload(fileName, file, { cacheControl: "3600", upsert: false });
     if (captionToSave) {
-      await supabase.from("video_captions").insert([{ file_name: fileName, caption: captionToSave }]);
+      await supabase.from("media_captions").insert([{ file_name: fileName, caption: captionToSave }]);
     }
     clearInterval(interval);
     setUploadProgress(100);
-    await sendNotification(name, "video", captionToSave || "shared a video 🎥");
+    await sendNotification(name, isImage ? "photo" : "video", captionToSave || (isImage ? "shared a photo 📷" : "shared a video 🎥"));
     setTimeout(() => { setUploadProgress(null); loadFeed(); }, 900);
   };
 
@@ -551,7 +615,7 @@ export default function App() {
           <div className="create-avatar">{profile?.avatar || "🌸"}</div>
           <div className="create-placeholder">Share something, {profile?.name?.split(" ")[0] || "girl"}...</div>
           <div className="create-actions">
-            <button className="create-pill" onClick={e => { e.stopPropagation(); openSheet("upload"); }}>🎥 Upload video</button>
+            <button className="create-pill" onClick={e => { e.stopPropagation(); openSheet("upload"); }}>📸 Upload media</button>
           </div>
         </div>
 
@@ -589,7 +653,7 @@ export default function App() {
                         {item.type === "win" ? "🏆 win" : "💭 thought"}
                       </span>
                     ) : (
-                      <span className="card-badge badge-video">🎥 video</span>
+                      <span className="card-badge badge-video">{item.itemType === "video" ? "🎥 video" : "📷 photo"}</span>
                     )}
                     <button className="delete-btn" onClick={() => setDeleteTarget(item)}>🗑️</button>
                   </div>
@@ -599,12 +663,56 @@ export default function App() {
                 ) : (
                   <>
                     {item.caption && <div className="card-content" style={{ paddingBottom: "0.6rem" }}>{item.caption}</div>}
-                    <video className="card-video" src={item.url} controls preload="metadata" playsInline />
+                    {item.itemType === "video" ? (
+                      <video className="card-video" src={item.url} controls preload="metadata" playsInline />
+                    ) : (
+                      <img className="card-video" src={item.url} alt={item.caption || "photo"} style={{ objectFit: "cover" }} />
+                    )}
                     <div className="card-video-footer">
                       <span className="video-expiry-tag">⏳ {expiresIn(item.created_at)}</span>
                     </div>
                   </>
                 )}
+                {openComments === `${item.itemType}-${item.id}` && (
+                  <div className="comments-section">
+                    {(commentsByPost[`${item.itemType}-${item.id}`] || []).length === 0 ? (
+                      <div className="comments-empty">No comments yet — be the first! 🌸</div>
+                    ) : (
+                      (commentsByPost[`${item.itemType}-${item.id}`] || []).map(c => (
+                        <div className="comment-item" key={c.id}>
+                          <div className="comment-avatar">{c.author_avatar}</div>
+                          <div className="comment-body">
+                            <div className="comment-header">
+                              <span className="comment-author">{c.author_name}</span>
+                              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                                <span className="comment-time">{timeAgo(c.created_at)}</span>
+                                {c.author_name === profile?.name && (
+                                  <button className="comment-delete" onClick={() => handleDeleteComment(c.id)}>🗑️</button>
+                                )}
+                              </div>
+                            </div>
+                            <div className="comment-content">{c.content}</div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                    <div className="comment-input-wrap">
+                      <textarea className="comment-input"
+                        placeholder="Add a comment..."
+                        value={commentText}
+                        onChange={e => setCommentText(e.target.value)}
+                        onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleCommentSubmit(item); } }} />
+                      <button className="comment-send-btn" onClick={() => handleCommentSubmit(item)} disabled={!commentText.trim() || submittingComment}>
+                        Post
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <div style={{ padding: "0.4rem 1.3rem 0.7rem", borderTop: "1px solid var(--border)" }}>
+                  <button className="comment-toggle" onClick={() => setOpenComments(openComments === `${item.itemType}-${item.id}` ? null : `${item.itemType}-${item.id}`)}>
+                    💬 {(commentsByPost[`${item.itemType}-${item.id}`] || []).length} {(commentsByPost[`${item.itemType}-${item.id}`] || []).length === 1 ? "comment" : "comments"}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -685,24 +793,24 @@ export default function App() {
             {sheetMode === "upload" && (
               <>
                 <div className="sheet-title">
-                  Upload a video 🎥
+                  Upload a photo or video 📸
                   <button className="sheet-close" onClick={closeSheet}>✕</button>
                 </div>
                 <div className="form-group">
                   <label className="form-label">Caption (optional)</label>
                   <textarea className="textarea-field" style={{ minHeight: "70px" }}
-                    placeholder="Add a caption to your video..."
+                    placeholder="Add a caption..."
                     value={videoCaption} onChange={e => setVideoCaption(e.target.value)} />
                 </div>
-                <input ref={fileInputRef} type="file" accept="video/*" className="hidden-input" onChange={e => handleFileInput(e.target.files[0])} />
+                <input ref={fileInputRef} type="file" accept="video/*,image/*" className="hidden-input" onChange={e => handleFileInput(e.target.files[0])} />
                 <div className={`upload-zone ${dragging ? "dragging" : ""}`}
                   onDragOver={e => { e.preventDefault(); setDragging(true); }}
                   onDragLeave={() => setDragging(false)}
                   onDrop={handleDrop}
                   onClick={() => fileInputRef.current.click()}>
                   <div className="upload-zone-icon">🎬</div>
-                  <p className="upload-zone-text"><strong>Click to choose a video</strong> or drag & drop</p>
-                  <p className="upload-zone-text" style={{ fontSize: "0.78rem", marginTop: "0.3rem" }}>MP4, MOV, AVI</p>
+                  <p className="upload-zone-text"><strong>Click to choose a photo or a video</strong> or drag & drop</p>
+                  <p className="upload-zone-text" style={{ fontSize: "0.78rem", marginTop: "0.3rem" }}>Photos & videos</p>
                 </div>
                 <button className="btn-cancel" style={{ width: "100%", marginTop: "0.5rem" }} onClick={closeSheet}>Cancel</button>
               </>
