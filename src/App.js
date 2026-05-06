@@ -288,7 +288,7 @@ export default function App() {
   const [loadingFeed, setLoadingFeed] = useState(true);
   const [uploadProgress, setUploadProgress] = useState(null);
   const [videoCaption, setVideoCaption] = useState("");
-  const [showSheet, setShowSheet] = useState(false); // eslint-disable-line no-unused-vars
+  const [showSheet, setShowSheet] = useState(false);
   const [sheetMode, setSheetMode] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -553,7 +553,7 @@ export default function App() {
 
     // Compress videos over 30MB
     let finalFile = file;
-    if (!isImage && file.size > 45 * 1024 * 1024) {
+    if (!isImage && file.size > 30 * 1024 * 1024) {
       try {
         finalFile = await compressVideo(file, (pct) => setUploadProgress(pct * 0.5)); // first 50% is compression
       } catch (e) {
