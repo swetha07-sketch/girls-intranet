@@ -35,7 +35,7 @@ const compressVideo = (file, onProgress) => {
     video.preload = "metadata";
     video.muted = true;
     video.playsInline = true;
-
+    
     video.onloadedmetadata = async () => {
       try {
         const canvas = document.createElement("canvas");
@@ -50,7 +50,7 @@ const compressVideo = (file, onProgress) => {
         canvas.width = w;
         canvas.height = h;
         const ctx = canvas.getContext("2d");
-
+        
         const stream = canvas.captureStream(30);
         // Add audio from original
         const videoEl = video;
@@ -58,22 +58,22 @@ const compressVideo = (file, onProgress) => {
         if (audioStream) {
           audioStream.getAudioTracks().forEach(t => stream.addTrack(t));
         }
-
+        
         const recorder = new MediaRecorder(stream, {
           mimeType: "video/webm;codecs=vp8,opus",
           videoBitsPerSecond: 1500000, // 1.5 Mbps
         });
-
+        
         const chunks = [];
         recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
         recorder.onstop = () => {
           const blob = new Blob(chunks, { type: "video/webm" });
           resolve(new File([blob], file.name.replace(/\.[^.]+$/, ".webm"), { type: "video/webm" }));
         };
-
+        
         recorder.start();
         video.play();
-
+        
         const drawFrame = () => {
           if (!video.ended && !video.paused) {
             ctx.drawImage(video, 0, 0, w, h);
@@ -88,7 +88,7 @@ const compressVideo = (file, onProgress) => {
         reject(err);
       }
     };
-
+    
     video.onerror = () => reject(new Error("Failed to load video"));
     video.src = URL.createObjectURL(file);
   });
@@ -459,9 +459,9 @@ export default function App() {
     console.log("merged feed order:", merged.map(i => ({ type: i.itemType, date: i.created_at })));
 
     setFeed(merged);
-    setLoadingFeed(false);
-    loadComments();
-  };
+setLoadingFeed(false);
+loadComments();
+};
 
   const openSheet = (mode = null) => { setSheetMode(mode); setShowSheet(true); };
   const closeSheet = () => {
@@ -825,77 +825,84 @@ export default function App() {
         </div>
       )}
 
-      {!sheetMode && (
-        <>
-          <div className="sheet-title">
-            What do you want to share? 🌸
-            <button className="sheet-close" onClick={closeSheet}>✕</button>
+      {showSheet && (
+        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && closeSheet()}>
+          <div className="sheet">
+            <div className="sheet-handle" />
+            {!sheetMode && (
+              <>
+                <div className="sheet-title">
+                  What do you want to share? 🌸
+                  <button className="sheet-close" onClick={closeSheet}>✕</button>
+                </div>
+                <div className="mode-options">
+                  <button className="mode-btn" onClick={() => setSheetMode("post")}>
+                    <div className="mode-icon">✍️</div>
+                    <div className="mode-label">Write a post</div>
+                    <div className="mode-sub">Win or thought</div>
+                  </button>
+                  <button className="mode-btn" onClick={() => setSheetMode("upload")}>
+                    <div className="mode-icon">🎥</div>
+                    <div className="mode-label">Upload a video</div>
+                    <div className="mode-sub">From your phone</div>
+                  </button>
+                </div>
+              </>
+            )}
+            {sheetMode === "post" && (
+              <>
+                <div className="sheet-title">
+                  Share with the girls 💌
+                  <button className="sheet-close" onClick={closeSheet}>✕</button>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">What is this?</label>
+                  <div className="type-pills">
+                    <button className={`pill win ${form.type === "win" ? "active" : ""}`} onClick={() => setForm({ ...form, type: "win" })}>🏆 Win of the day</button>
+                    <button className={`pill thought ${form.type === "thought" ? "active" : ""}`} onClick={() => setForm({ ...form, type: "thought" })}>💭 Random thought</button>
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">{form.type === "win" ? "What did you win at?" : "What's on your mind?"}</label>
+                  <textarea className="textarea-field"
+                    placeholder={form.type === "win" ? "I finally finished that thing I've been putting off..." : "Does anyone else think about..."}
+                    value={form.content} onChange={e => setForm({ ...form, content: e.target.value })} />
+                </div>
+                <div className="sheet-actions">
+                  <button className="btn-cancel" onClick={closeSheet}>Cancel</button>
+                  <button className="btn-submit" onClick={handlePostSubmit} disabled={!form.content.trim() || submitting}>
+                    {submitting ? "Posting…" : "Post it ✨"}
+                  </button>
+                </div>
+              </>
+            )}
+            {sheetMode === "upload" && (
+              <>
+                <div className="sheet-title">
+                  Upload a photo or video 📸
+                  <button className="sheet-close" onClick={closeSheet}>✕</button>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Caption (optional)</label>
+                  <textarea className="textarea-field" style={{ minHeight: "70px" }}
+                    placeholder="Add a caption..."
+                    value={videoCaption} onChange={e => setVideoCaption(e.target.value)} />
+                </div>
+                <input ref={fileInputRef} type="file" accept="video/*,image/*" className="hidden-input" onChange={e => handleFileInput(e.target.files[0])} />
+                <div className={`upload-zone ${dragging ? "dragging" : ""}`}
+                  onDragOver={e => { e.preventDefault(); setDragging(true); }}
+                  onDragLeave={() => setDragging(false)}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current.click()}>
+                  <div className="upload-zone-icon">🎬</div>
+                  <p className="upload-zone-text"><strong>Click to choose a photo or a video</strong> or drag & drop</p>
+                  <p className="upload-zone-text" style={{ fontSize: "0.78rem", marginTop: "0.3rem" }}>Photos & videos</p>
+                </div>
+                <button className="btn-cancel" style={{ width: "100%", marginTop: "0.5rem" }} onClick={closeSheet}>Cancel</button>
+              </>
+            )}
           </div>
-          <div className="mode-options">
-            <button className="mode-btn" onClick={() => setSheetMode("post")}>
-              <div className="mode-icon">✍️</div>
-              <div className="mode-label">Write a post</div>
-              <div className="mode-sub">Win or thought</div>
-            </button>
-            <button className="mode-btn" onClick={() => setSheetMode("upload")}>
-              <div className="mode-icon">📸</div>
-              <div className="mode-label">Upload media</div>
-              <div className="mode-sub">Photo or video</div>
-            </button>
-          </div>
-        </>
-      )}
-      {sheetMode === "post" && (
-        <>
-          <div className="sheet-title">
-            Share with the girls 💌
-            <button className="sheet-close" onClick={closeSheet}>✕</button>
-          </div>
-          <div className="form-group">
-            <label className="form-label">What is this?</label>
-            <div className="type-pills">
-              <button className={`pill win ${form.type === "win" ? "active" : ""}`} onClick={() => setForm({ ...form, type: "win" })}>🏆 Win of the day</button>
-              <button className={`pill thought ${form.type === "thought" ? "active" : ""}`} onClick={() => setForm({ ...form, type: "thought" })}>💭 Random thought</button>
-            </div>
-          </div>
-          <div className="form-group">
-            <label className="form-label">{form.type === "win" ? "What did you win at?" : "What's on your mind?"}</label>
-            <textarea className="textarea-field"
-              placeholder={form.type === "win" ? "I finally finished that thing I've been putting off..." : "Does anyone else think about..."}
-              value={form.content} onChange={e => setForm({ ...form, content: e.target.value })} />
-          </div>
-          <div className="sheet-actions">
-            <button className="btn-cancel" onClick={closeSheet}>Cancel</button>
-            <button className="btn-submit" onClick={handlePostSubmit} disabled={!form.content.trim() || submitting}>
-              {submitting ? "Posting…" : "Post it ✨"}
-            </button>
-          </div>
-        </>
-      )}
-      {sheetMode === "upload" && (
-        <>
-          <div className="sheet-title">
-            Upload a photo or video 📸
-            <button className="sheet-close" onClick={closeSheet}>✕</button>
-          </div>
-          <div className="form-group">
-            <label className="form-label">Caption (optional)</label>
-            <textarea className="textarea-field" style={{ minHeight: "70px" }}
-              placeholder="Add a caption..."
-              value={videoCaption} onChange={e => setVideoCaption(e.target.value)} />
-          </div>
-          <input ref={fileInputRef} type="file" accept="video/*,image/*" className="hidden-input" onChange={e => handleFileInput(e.target.files[0])} />
-          <div className={`upload-zone ${dragging ? "dragging" : ""}`}
-            onDragOver={e => { e.preventDefault(); setDragging(true); }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current.click()}>
-            <div className="upload-zone-icon">🎬</div>
-            <p className="upload-zone-text"><strong>Click to choose a photo or a video</strong> or drag & drop</p>
-            <p className="upload-zone-text" style={{ fontSize: "0.78rem", marginTop: "0.3rem" }}>Photos & videos</p>
-          </div>
-          <button className="btn-cancel" style={{ width: "100%", marginTop: "0.5rem" }} onClick={closeSheet}>Cancel</button>
-        </>
+        </div>
       )}
     </div>
   );
