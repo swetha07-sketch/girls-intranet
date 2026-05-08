@@ -483,20 +483,38 @@ export default function App() {
     setCommentsByPost(grouped);
   };
 
-  const handleCommentSubmit = async (item) => {
-    if (!commentText.trim()) return;
-    setSubmittingComment(true);
-    await supabase.from("comments").insert([{
-      parent_type: item.itemType,
-      parent_id: String(item.id),
-      author_name: profile?.name || "Someone",
-      author_avatar: profile?.avatar || "🌸",
-      content: commentText.trim(),
-    }]);
-    setCommentText("");
-    setSubmittingComment(false);
-    loadComments();
-  };
+ const handleCommentSubmit = async (item) => {
+  if (!commentText.trim()) return;
+  setSubmittingComment(true);
+  const commenterName = profile?.name || "Someone";
+  const commentContent = commentText.trim();
+  
+  await supabase.from("comments").insert([{
+    parent_type: item.itemType,
+    parent_id: String(item.id),
+    author_name: commenterName,
+    author_avatar: profile?.avatar || "🌸",
+    content: commentContent,
+  }]);
+  
+  // Send notification about the comment
+  try {
+    await fetch("/api/notify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        posterName: commenterName,
+        type: "comment",
+        content: `💬 commented on ${item.name}'s ${item.itemType}: "${commentContent}"`,
+        posterEmail: user.email,
+      }),
+    });
+  } catch (e) { console.log("Comment notification failed silently", e); }
+  
+  setCommentText("");
+  setSubmittingComment(false);
+  loadComments();
+};
 
   const handleDeleteComment = async (id) => {
     await supabase.from("comments").delete().eq("id", id);

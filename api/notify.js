@@ -14,7 +14,12 @@ export default async function handler(req, res) {
   const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
   const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 
-  const typeLabel = type === "win" ? "🏆 shared a win" : type === "thought" ? "💭 shared a thought" : "🎥 uploaded a video";
+  const typeLabel = type === "win" ? "🏆 shared a win"
+    : type === "thought" ? "💭 shared a thought"
+    : type === "video" ? "🎥 uploaded a video"
+    : type === "photo" ? "📷 uploaded a photo"
+    : type === "comment" ? "💬 left a comment"
+    : "shared something";
 
   const emailBody = `
     <div style="font-family: Georgia, serif; max-width: 480px; margin: 0 auto; padding: 2rem; background: #faf7f2; border-radius: 16px;">
