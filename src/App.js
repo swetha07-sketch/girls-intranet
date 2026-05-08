@@ -8,8 +8,6 @@ const supabase = createClient(
 
 const MEMBERS = ["Farida", "Meghavi", "Prakruti", "Pulak", "Swetha"];
 
-const INVITE_CODE = process.env.REACT_APP_INVITE_CODE;
-
 const timeAgo = (ts) => {
   const diff = Date.now() - new Date(ts).getTime();
   const m = Math.floor(diff / 60000);
@@ -302,7 +300,13 @@ export default function App() {
 
   const handleSignup = async () => {
     if (!email || !password) { setAuthError("Please fill in all fields!"); return; }
-    if (inviteCode !== INVITE_CODE) { setAuthError("Invalid invite code 💔"); return; }
+    const verifyRes = await fetch("/api/verify-invite", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ code: inviteCode }),
+});
+const verifyData = await verifyRes.json();
+if (!verifyData.valid) { setAuthError("Invalid invite code 💔"); return; }
     if (password.length < 6) { setAuthError("Password must be at least 6 characters!"); return; }
     setAuthSubmitting(true); setAuthError("");
     const { error } = await supabase.auth.signUp({ email, password });
