@@ -352,30 +352,30 @@ export default function App() {
 
     // fetch videos
     const { data: files } = await supabase.storage.from("videos").list("", {
-      limit: 100, sortBy: { column: "created_at", order: "desc" }
-    });
+  limit: 100, sortBy: { column: "created_at", order: "desc" }
+});
 
-    const { data: allCaptions } = await supabase.from("media_captions").select("file_name, caption");
-    const captionMap = {};
-    (allCaptions || []).forEach(c => { captionMap[c.file_name] = c.caption; });
+const { data: allCaptions } = await supabase.from("media_captions").select("file_name, caption");
+const captionMap = {};
+(allCaptions || []).forEach(c => { captionMap[c.file_name] = c.caption; });
 
-    const freshMedia = (files || [])
-      .filter(f => f.name !== ".emptyFolderPlaceholder" && new Date(f.created_at) >= new Date(sevenDaysAgo))
-      .map(f => {
-        const uploaderName = f.name.split("_")[0];
-        const ext = f.name.split(".").pop().toLowerCase();
-        const isImage = ["jpg", "jpeg", "png", "gif", "webp", "heic"].includes(ext);
-        return {
-          id: f.id,
-          itemType: isImage ? "photo" : "video",
-          name: uploaderName,
-          avatar: avatarMap[uploaderName] || "🌸",
-          created_at: f.created_at,
-          url: supabase.storage.from("videos").getPublicUrl(f.name).data.publicUrl,
-          fileName: f.name,
-          caption: captionMap[f.name] || "",
-        };
-      });
+const freshMedia = (files || [])
+  .filter(f => f.name !== ".emptyFolderPlaceholder" && new Date(f.created_at) >= new Date(sevenDaysAgo))
+  .map(f => {
+    const uploaderName = f.name.split("_")[0];
+    const ext = f.name.split(".").pop().toLowerCase();
+    const isImage = ["jpg", "jpeg", "png", "gif", "webp", "heic"].includes(ext);
+    return {
+      id: f.id,
+      itemType: isImage ? "photo" : "video",
+      name: uploaderName,
+      avatar: avatarMap[uploaderName] || "🌸",
+      created_at: f.created_at,
+      url: supabase.storage.from("videos").getPublicUrl(f.name).data.publicUrl,
+      fileName: f.name,
+      caption: captionMap[f.name] || "",
+    };
+  });
 
     const postItems = (posts || []).map(p => ({
       ...p,
@@ -394,9 +394,9 @@ export default function App() {
     console.log("merged feed order:", merged.map(i => ({ type: i.itemType, date: i.created_at })));
 
     setFeed(merged);
-setLoadingFeed(false);
-loadComments();
-};
+    setLoadingFeed(false);
+    loadComments();
+  };
 
   const openSheet = (mode = null) => { setSheetMode(mode); setShowSheet(true); };
   const closeSheet = () => {
@@ -424,15 +424,15 @@ loadComments();
   };
 
   const handleDelete = async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    if (deleteTarget.itemType === "post") {
-      await supabase.from("posts").delete().eq("id", deleteTarget.id);
-    } else {
-      await supabase.storage.from("videos").remove([deleteTarget.fileName]);
-    }
-    setDeleting(false); setDeleteTarget(null); loadFeed();
-  };
+  if (!deleteTarget) return;
+  setDeleting(true);
+  if (deleteTarget.itemType === "post") {
+    await supabase.from("posts").delete().eq("id", deleteTarget.id);
+  } else {
+    await supabase.storage.from("videos").remove([deleteTarget.fileName]);
+  }
+  setDeleting(false); setDeleteTarget(null); loadFeed();
+};
 
   const handleFileInput = f => { if (f && (f.type.startsWith("video/") || f.type.startsWith("image/"))) uploadMedia(f); };
   const handleDrop = e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f && (f.type.startsWith("video/") || f.type.startsWith("image/"))) uploadMedia(f); };
@@ -478,25 +478,25 @@ loadComments();
     loadComments();
   };
 
-  const uploadMedia = async (file) => {
-    const name = profile?.name || "Someone";
-    const ext = file.name.split(".").pop().toLowerCase();
-    const isImage = file.type.startsWith("image/");
-    const fileName = `${name}_${Date.now()}.${ext}`;
-    const captionToSave = videoCaption.trim();
-    closeSheet();
-    setUploadProgress(0);
-    setVideoCaption("");
-    const interval = setInterval(() => setUploadProgress(p => p < 85 ? p + Math.random() * 12 : p), 300);
-    await supabase.storage.from("videos").upload(fileName, file, { cacheControl: "3600", upsert: false });
-    if (captionToSave) {
-      await supabase.from("media_captions").insert([{ file_name: fileName, caption: captionToSave }]);
-    }
-    clearInterval(interval);
-    setUploadProgress(100);
-    await sendNotification(name, isImage ? "photo" : "video", captionToSave || (isImage ? "shared a photo 📷" : "shared a video 🎥"));
-    setTimeout(() => { setUploadProgress(null); loadFeed(); }, 900);
-  };
+const uploadMedia = async (file) => {
+  const name = profile?.name || "Someone";
+  const ext = file.name.split(".").pop().toLowerCase();
+  const isImage = file.type.startsWith("image/");
+  const fileName = `${name}_${Date.now()}.${ext}`;
+  const captionToSave = videoCaption.trim();
+  closeSheet();
+  setUploadProgress(0);
+  setVideoCaption("");
+  const interval = setInterval(() => setUploadProgress(p => p < 85 ? p + Math.random() * 12 : p), 300);
+  await supabase.storage.from("videos").upload(fileName, file, { cacheControl: "3600", upsert: false });
+  if (captionToSave) {
+    await supabase.from("media_captions").insert([{ file_name: fileName, caption: captionToSave }]);
+  }
+  clearInterval(interval);
+  setUploadProgress(100);
+  await sendNotification(name, isImage ? "photo" : "video", captionToSave || (isImage ? "shared a photo 📷" : "shared a video 🎥"));
+  setTimeout(() => { setUploadProgress(null); loadFeed(); }, 900);
+};
 
   if (authLoading) return (
     <div className="app-root">
@@ -615,7 +615,7 @@ loadComments();
           <div className="create-avatar">{profile?.avatar || "🌸"}</div>
           <div className="create-placeholder">Share something, {profile?.name?.split(" ")[0] || "girl"}...</div>
           <div className="create-actions">
-            <button className="create-pill" onClick={e => { e.stopPropagation(); openSheet("upload"); }}>📸 Upload media</button>
+            <button className="create-pill" onClick={e => { e.stopPropagation(); openSheet("upload"); }}>📸 Camera</button>
           </div>
         </div>
 
@@ -756,68 +756,69 @@ loadComments();
                     <div className="mode-sub">Win or thought</div>
                   </button>
                   <button className="mode-btn" onClick={() => setSheetMode("upload")}>
-                    <div className="mode-icon">🎥</div>
-                    <div className="mode-label">Upload a video</div>
-                    <div className="mode-sub">From your phone</div>
+                    <div className="mode-icon">📸</div>
+                    <div className="mode-label">Take photo/video</div>
+                    <div className="mode-sub">Open camera</div>
                   </button>
-                </div>
-              </>
+              </div>
+          </>
             )}
-            {sheetMode === "post" && (
-              <>
-                <div className="sheet-title">
-                  Share with the girls 💌
-                  <button className="sheet-close" onClick={closeSheet}>✕</button>
+          {sheetMode === "post" && (
+            <>
+              <div className="sheet-title">
+                Capture a moment 📸
+                <button className="sheet-close" onClick={closeSheet}>✕</button>
+              </div>
+              <div className="form-group">
+                <label className="form-label">What is this?</label>
+                <div className="type-pills">
+                  <button className={`pill win ${form.type === "win" ? "active" : ""}`} onClick={() => setForm({ ...form, type: "win" })}>🏆 Win of the day</button>
+                  <button className={`pill thought ${form.type === "thought" ? "active" : ""}`} onClick={() => setForm({ ...form, type: "thought" })}>💭 Random thought</button>
                 </div>
-                <div className="form-group">
-                  <label className="form-label">What is this?</label>
-                  <div className="type-pills">
-                    <button className={`pill win ${form.type === "win" ? "active" : ""}`} onClick={() => setForm({ ...form, type: "win" })}>🏆 Win of the day</button>
-                    <button className={`pill thought ${form.type === "thought" ? "active" : ""}`} onClick={() => setForm({ ...form, type: "thought" })}>💭 Random thought</button>
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">{form.type === "win" ? "What did you win at?" : "What's on your mind?"}</label>
-                  <textarea className="textarea-field"
-                    placeholder={form.type === "win" ? "I finally finished that thing I've been putting off..." : "Does anyone else think about..."}
-                    value={form.content} onChange={e => setForm({ ...form, content: e.target.value })} />
-                </div>
-                <div className="sheet-actions">
-                  <button className="btn-cancel" onClick={closeSheet}>Cancel</button>
-                  <button className="btn-submit" onClick={handlePostSubmit} disabled={!form.content.trim() || submitting}>
-                    {submitting ? "Posting…" : "Post it ✨"}
-                  </button>
-                </div>
-              </>
-            )}
-            {sheetMode === "upload" && (
-              <>
-                <div className="sheet-title">
-                  Upload a photo or video 📸
-                  <button className="sheet-close" onClick={closeSheet}>✕</button>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Caption (optional)</label>
-                  <textarea className="textarea-field" style={{ minHeight: "70px" }}
-                    placeholder="Add a caption..."
-                    value={videoCaption} onChange={e => setVideoCaption(e.target.value)} />
-                </div>
-                <input ref={fileInputRef} type="file" accept="video/*,image/*" className="hidden-input" onChange={e => handleFileInput(e.target.files[0])} />
-                <div className={`upload-zone ${dragging ? "dragging" : ""}`}
-                  onDragOver={e => { e.preventDefault(); setDragging(true); }}
-                  onDragLeave={() => setDragging(false)}
-                  onDrop={handleDrop}
-                  onClick={() => fileInputRef.current.click()}>
-                  <div className="upload-zone-icon">🎬</div>
-                  <p className="upload-zone-text"><strong>Click to choose a photo or a video</strong> or drag & drop</p>
-                  <p className="upload-zone-text" style={{ fontSize: "0.78rem", marginTop: "0.3rem" }}>Photos & videos</p>
-                </div>
-                <button className="btn-cancel" style={{ width: "100%", marginTop: "0.5rem" }} onClick={closeSheet}>Cancel</button>
-              </>
-            )}
-          </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">{form.type === "win" ? "What did you win at?" : "What's on your mind?"}</label>
+                <textarea className="textarea-field"
+                  placeholder={form.type === "win" ? "I finally finished that thing I've been putting off..." : "Does anyone else think about..."}
+                  value={form.content} onChange={e => setForm({ ...form, content: e.target.value })} />
+              </div>
+              <div className="sheet-actions">
+                <button className="btn-cancel" onClick={closeSheet}>Cancel</button>
+                <button className="btn-submit" onClick={handlePostSubmit} disabled={!form.content.trim() || submitting}>
+                  {submitting ? "Posting…" : "Post it ✨"}
+                </button>
+              </div>
+            </>
+          )}
+          {sheetMode === "upload" && (
+            <>
+              <div className="sheet-title">
+                Upload a photo or video 📸
+                <button className="sheet-close" onClick={closeSheet}>✕</button>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Caption (optional)</label>
+                <textarea className="textarea-field" style={{ minHeight: "70px" }}
+                  placeholder="Add a caption..."
+                  value={videoCaption} onChange={e => setVideoCaption(e.target.value)} />
+              </div>
+              <input ref={fileInputRef} type="file" accept="video/*,image/*" capture="environment" className="hidden-input" onChange={e => handleFileInput(e.target.files[0])} />
+              <div className={`upload-zone ${dragging ? "dragging" : ""}`}
+                onDragOver={e => { e.preventDefault(); setDragging(true); }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current.click()}>
+                <div className="upload-zone-icon">📸</div>
+                <p className="upload-zone-text"><strong>Tap to open camera</strong></p>
+                <p className="upload-zone-text" style={{ fontSize: "0.78rem", marginTop: "0.3rem" }}>Take a photo or record a video</p>
+              </div>
+              <button className="btn-cancel" style={{ width: "100%", marginTop: "0.5rem" }} onClick={closeSheet}>Cancel</button>
+            </>
+          )}
         </div>
-      )}
-    </div>
+        </div>
+  )
+}
+    </div >
   );
 }
