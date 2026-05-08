@@ -86,6 +86,8 @@ styleTag.textContent = `
   .header-logo span { color: var(--rose); }
   .header-right { display: flex; align-items: center; gap: 0.75rem; }
   .header-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--blush); display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+  .header-profile-btn { background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; padding: 0.3rem 0.6rem; border-radius: 999px; transition: background 0.15s; font-family: 'DM Sans', sans-serif; }
+.header-profile-btn:hover { background: #fdf0ec; }
   .header-user { font-size: 0.85rem; color: var(--taupe); font-weight: 500; }
   .logout-btn { background: none; border: 1.5px solid var(--border); color: var(--taupe); cursor: pointer; font-size: 0.85rem; padding: 0.4rem 0.9rem; border-radius: 999px; transition: all 0.2s; font-family: 'DM Sans', sans-serif; }
   .logout-btn:hover { border-color: var(--rose); color: var(--rose); }
@@ -219,6 +221,11 @@ export default function App() {
   const [setupSubmitting, setSetupSubmitting] = useState(false);
   const [setupError, setSetupError] = useState("");
 
+  const [showSettings, setShowSettings] = useState(false);
+  const [editingAvatar, setEditingAvatar] = useState("");
+  const [editingName, setEditingName] = useState("");
+  const [savingSettings, setSavingSettings] = useState(false);
+
   const [feed, setFeed] = useState([]);
   const [loadingFeed, setLoadingFeed] = useState(true);
   const [uploadProgress, setUploadProgress] = useState(null);
@@ -273,6 +280,24 @@ export default function App() {
     const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
     if (!data) { setNeedsProfileSetup(true); }
     else { setProfile(data); setNeedsProfileSetup(false); }
+  };
+
+  const openSettings = () => {
+    setEditingAvatar(profile?.avatar || "🌸");
+    setEditingName(profile?.name || "");
+    setShowSettings(true);
+  };
+
+  const handleSaveSettings = async () => {
+    if (!editingName) return;
+    setSavingSettings(true);
+    await supabase.from("profiles")
+      .update({ name: editingName, avatar: editingAvatar })
+      .eq("id", user.id);
+    setSavingSettings(false);
+    setShowSettings(false);
+    loadProfile();
+    loadFeed();
   };
 
   const handleSignup = async () => {
@@ -352,30 +377,30 @@ export default function App() {
 
     // fetch videos
     const { data: files } = await supabase.storage.from("videos").list("", {
-  limit: 100, sortBy: { column: "created_at", order: "desc" }
-});
+      limit: 100, sortBy: { column: "created_at", order: "desc" }
+    });
 
-const { data: allCaptions } = await supabase.from("media_captions").select("file_name, caption");
-const captionMap = {};
-(allCaptions || []).forEach(c => { captionMap[c.file_name] = c.caption; });
+    const { data: allCaptions } = await supabase.from("media_captions").select("file_name, caption");
+    const captionMap = {};
+    (allCaptions || []).forEach(c => { captionMap[c.file_name] = c.caption; });
 
-const freshMedia = (files || [])
-  .filter(f => f.name !== ".emptyFolderPlaceholder" && new Date(f.created_at) >= new Date(sevenDaysAgo))
-  .map(f => {
-    const uploaderName = f.name.split("_")[0];
-    const ext = f.name.split(".").pop().toLowerCase();
-    const isImage = ["jpg", "jpeg", "png", "gif", "webp", "heic"].includes(ext);
-    return {
-      id: f.id,
-      itemType: isImage ? "photo" : "video",
-      name: uploaderName,
-      avatar: avatarMap[uploaderName] || "🌸",
-      created_at: f.created_at,
-      url: supabase.storage.from("videos").getPublicUrl(f.name).data.publicUrl,
-      fileName: f.name,
-      caption: captionMap[f.name] || "",
-    };
-  });
+    const freshMedia = (files || [])
+      .filter(f => f.name !== ".emptyFolderPlaceholder" && new Date(f.created_at) >= new Date(sevenDaysAgo))
+      .map(f => {
+        const uploaderName = f.name.split("_")[0];
+        const ext = f.name.split(".").pop().toLowerCase();
+        const isImage = ["jpg", "jpeg", "png", "gif", "webp", "heic"].includes(ext);
+        return {
+          id: f.id,
+          itemType: isImage ? "photo" : "video",
+          name: uploaderName,
+          avatar: avatarMap[uploaderName] || "🌸",
+          created_at: f.created_at,
+          url: supabase.storage.from("videos").getPublicUrl(f.name).data.publicUrl,
+          fileName: f.name,
+          caption: captionMap[f.name] || "",
+        };
+      });
 
     const postItems = (posts || []).map(p => ({
       ...p,
@@ -424,15 +449,15 @@ const freshMedia = (files || [])
   };
 
   const handleDelete = async () => {
-  if (!deleteTarget) return;
-  setDeleting(true);
-  if (deleteTarget.itemType === "post") {
-    await supabase.from("posts").delete().eq("id", deleteTarget.id);
-  } else {
-    await supabase.storage.from("videos").remove([deleteTarget.fileName]);
-  }
-  setDeleting(false); setDeleteTarget(null); loadFeed();
-};
+    if (!deleteTarget) return;
+    setDeleting(true);
+    if (deleteTarget.itemType === "post") {
+      await supabase.from("posts").delete().eq("id", deleteTarget.id);
+    } else {
+      await supabase.storage.from("videos").remove([deleteTarget.fileName]);
+    }
+    setDeleting(false); setDeleteTarget(null); loadFeed();
+  };
 
   const handleFileInput = f => { if (f && (f.type.startsWith("video/") || f.type.startsWith("image/"))) uploadMedia(f); };
   const handleDrop = e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f && (f.type.startsWith("video/") || f.type.startsWith("image/"))) uploadMedia(f); };
@@ -478,25 +503,25 @@ const freshMedia = (files || [])
     loadComments();
   };
 
-const uploadMedia = async (file) => {
-  const name = profile?.name || "Someone";
-  const ext = file.name.split(".").pop().toLowerCase();
-  const isImage = file.type.startsWith("image/");
-  const fileName = `${name}_${Date.now()}.${ext}`;
-  const captionToSave = videoCaption.trim();
-  closeSheet();
-  setUploadProgress(0);
-  setVideoCaption("");
-  const interval = setInterval(() => setUploadProgress(p => p < 85 ? p + Math.random() * 12 : p), 300);
-  await supabase.storage.from("videos").upload(fileName, file, { cacheControl: "3600", upsert: false });
-  if (captionToSave) {
-    await supabase.from("media_captions").insert([{ file_name: fileName, caption: captionToSave }]);
-  }
-  clearInterval(interval);
-  setUploadProgress(100);
-  await sendNotification(name, isImage ? "photo" : "video", captionToSave || (isImage ? "shared a photo 📷" : "shared a video 🎥"));
-  setTimeout(() => { setUploadProgress(null); loadFeed(); }, 900);
-};
+  const uploadMedia = async (file) => {
+    const name = profile?.name || "Someone";
+    const ext = file.name.split(".").pop().toLowerCase();
+    const isImage = file.type.startsWith("image/");
+    const fileName = `${name}_${Date.now()}.${ext}`;
+    const captionToSave = videoCaption.trim();
+    closeSheet();
+    setUploadProgress(0);
+    setVideoCaption("");
+    const interval = setInterval(() => setUploadProgress(p => p < 85 ? p + Math.random() * 12 : p), 300);
+    await supabase.storage.from("videos").upload(fileName, file, { cacheControl: "3600", upsert: false });
+    if (captionToSave) {
+      await supabase.from("media_captions").insert([{ file_name: fileName, caption: captionToSave }]);
+    }
+    clearInterval(interval);
+    setUploadProgress(100);
+    await sendNotification(name, isImage ? "photo" : "video", captionToSave || (isImage ? "shared a photo 📷" : "shared a video 🎥"));
+    setTimeout(() => { setUploadProgress(null); loadFeed(); }, 900);
+  };
 
   if (authLoading) return (
     <div className="app-root">
@@ -591,10 +616,10 @@ const uploadMedia = async (file) => {
         <div className="header-logo">2 States<span>'</span> Corner</div>
         <div className="header-right">
           {profile && (
-            <>
+            <button className="header-profile-btn" onClick={openSettings} title="Edit profile">
               <div className="header-avatar">{profile.avatar || "🌸"}</div>
               <span className="header-user">{profile.name}</span>
-            </>
+            </button>
           )}
           {pushPermission !== "granted" && (
             <button
@@ -739,6 +764,39 @@ const uploadMedia = async (file) => {
         </div>
       )}
 
+      {showSettings && (
+        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setShowSettings(false)}>
+          <div className="sheet">
+            <div className="sheet-handle" />
+            <div className="sheet-title">
+              Edit your profile 🌸
+              <button className="sheet-close" onClick={() => setShowSettings(false)}>✕</button>
+            </div>
+            <div className="avatar-big selected" style={{ marginBottom: "1rem" }}>{editingAvatar}</div>
+            <p className="setup-section-label">Pick your avatar</p>
+            <div className="avatar-grid">
+              {AVATAR_EMOJIS.map(emoji => (
+                <button key={emoji} className={`avatar-option ${editingAvatar === emoji ? "active" : ""}`}
+                  onClick={() => setEditingAvatar(emoji)}>{emoji}</button>
+              ))}
+            </div>
+            <p className="setup-section-label">Change your name</p>
+            <div className="name-grid">
+              {MEMBERS.map(name => (
+                <button key={name} className={`name-option ${editingName === name ? "active" : ""}`}
+                  onClick={() => setEditingName(name)}>{name}</button>
+              ))}
+            </div>
+            <div className="sheet-actions">
+              <button className="btn-cancel" onClick={() => setShowSettings(false)}>Cancel</button>
+              <button className="btn-submit" onClick={handleSaveSettings} disabled={!editingName || savingSettings}>
+                {savingSettings ? "Saving…" : "Save changes 💕"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showSheet && (
         <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && closeSheet()}>
           <div className="sheet">
@@ -760,65 +818,65 @@ const uploadMedia = async (file) => {
                     <div className="mode-label">Take photo/video</div>
                     <div className="mode-sub">Open camera</div>
                   </button>
-              </div>
-          </>
-            )}
-          {sheetMode === "post" && (
-            <>
-              <div className="sheet-title">
-                Capture a moment 📸
-                <button className="sheet-close" onClick={closeSheet}>✕</button>
-              </div>
-              <div className="form-group">
-                <label className="form-label">What is this?</label>
-                <div className="type-pills">
-                  <button className={`pill win ${form.type === "win" ? "active" : ""}`} onClick={() => setForm({ ...form, type: "win" })}>🏆 Win of the day</button>
-                  <button className={`pill thought ${form.type === "thought" ? "active" : ""}`} onClick={() => setForm({ ...form, type: "thought" })}>💭 Random thought</button>
                 </div>
-              </div>
-              <div className="form-group">
-                <label className="form-label">{form.type === "win" ? "What did you win at?" : "What's on your mind?"}</label>
-                <textarea className="textarea-field"
-                  placeholder={form.type === "win" ? "I finally finished that thing I've been putting off..." : "Does anyone else think about..."}
-                  value={form.content} onChange={e => setForm({ ...form, content: e.target.value })} />
-              </div>
-              <div className="sheet-actions">
-                <button className="btn-cancel" onClick={closeSheet}>Cancel</button>
-                <button className="btn-submit" onClick={handlePostSubmit} disabled={!form.content.trim() || submitting}>
-                  {submitting ? "Posting…" : "Post it ✨"}
-                </button>
-              </div>
-            </>
-          )}
-          {sheetMode === "upload" && (
-            <>
-              <div className="sheet-title">
-                Upload a photo or video 📸
-                <button className="sheet-close" onClick={closeSheet}>✕</button>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Caption (optional)</label>
-                <textarea className="textarea-field" style={{ minHeight: "70px" }}
-                  placeholder="Add a caption..."
-                  value={videoCaption} onChange={e => setVideoCaption(e.target.value)} />
-              </div>
-              <input ref={fileInputRef} type="file" accept="video/*,image/*" capture="environment" className="hidden-input" onChange={e => handleFileInput(e.target.files[0])} />
-              <div className={`upload-zone ${dragging ? "dragging" : ""}`}
-                onDragOver={e => { e.preventDefault(); setDragging(true); }}
-                onDragLeave={() => setDragging(false)}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current.click()}>
-                <div className="upload-zone-icon">📸</div>
-                <p className="upload-zone-text"><strong>Tap to open camera</strong></p>
-                <p className="upload-zone-text" style={{ fontSize: "0.78rem", marginTop: "0.3rem" }}>Take a photo or record a video</p>
-              </div>
-              <button className="btn-cancel" style={{ width: "100%", marginTop: "0.5rem" }} onClick={closeSheet}>Cancel</button>
-            </>
-          )}
+              </>
+            )}
+            {sheetMode === "post" && (
+              <>
+                <div className="sheet-title">
+                  Capture a moment 📸
+                  <button className="sheet-close" onClick={closeSheet}>✕</button>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">What is this?</label>
+                  <div className="type-pills">
+                    <button className={`pill win ${form.type === "win" ? "active" : ""}`} onClick={() => setForm({ ...form, type: "win" })}>🏆 Win of the day</button>
+                    <button className={`pill thought ${form.type === "thought" ? "active" : ""}`} onClick={() => setForm({ ...form, type: "thought" })}>💭 Random thought</button>
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">{form.type === "win" ? "What did you win at?" : "What's on your mind?"}</label>
+                  <textarea className="textarea-field"
+                    placeholder={form.type === "win" ? "I finally finished that thing I've been putting off..." : "Does anyone else think about..."}
+                    value={form.content} onChange={e => setForm({ ...form, content: e.target.value })} />
+                </div>
+                <div className="sheet-actions">
+                  <button className="btn-cancel" onClick={closeSheet}>Cancel</button>
+                  <button className="btn-submit" onClick={handlePostSubmit} disabled={!form.content.trim() || submitting}>
+                    {submitting ? "Posting…" : "Post it ✨"}
+                  </button>
+                </div>
+              </>
+            )}
+            {sheetMode === "upload" && (
+              <>
+                <div className="sheet-title">
+                  Upload a photo or video 📸
+                  <button className="sheet-close" onClick={closeSheet}>✕</button>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Caption (optional)</label>
+                  <textarea className="textarea-field" style={{ minHeight: "70px" }}
+                    placeholder="Add a caption..."
+                    value={videoCaption} onChange={e => setVideoCaption(e.target.value)} />
+                </div>
+                <input ref={fileInputRef} type="file" accept="video/*,image/*" capture="environment" className="hidden-input" onChange={e => handleFileInput(e.target.files[0])} />
+                <div className={`upload-zone ${dragging ? "dragging" : ""}`}
+                  onDragOver={e => { e.preventDefault(); setDragging(true); }}
+                  onDragLeave={() => setDragging(false)}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current.click()}>
+                  <div className="upload-zone-icon">📸</div>
+                  <p className="upload-zone-text"><strong>Tap to open camera</strong></p>
+                  <p className="upload-zone-text" style={{ fontSize: "0.78rem", marginTop: "0.3rem" }}>Take a photo or record a video</p>
+                </div>
+                <button className="btn-cancel" style={{ width: "100%", marginTop: "0.5rem" }} onClick={closeSheet}>Cancel</button>
+              </>
+            )}
+          </div>
         </div>
-        </div>
-  )
-}
+      )
+      }
     </div >
   );
 }
