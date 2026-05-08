@@ -61,10 +61,24 @@ export default async function handler(req, res) {
   // Push notifications
   let pushResult = { sent: 0, failed: 0 };
   try {
-    const subsRes = await fetch(`${supabaseUrl}/rest/v1/push_subscriptions?select=id,subscription`, {
-      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
-    });
-    const subs = await subsRes.json();
+    // Find the poster's user_id so we can exclude their devices
+let posterUserId = null;
+if (posterEmail) {
+  const profilesRes = await fetch(`${supabaseUrl}/rest/v1/profiles?email=eq.${encodeURIComponent(posterEmail)}&select=id`, {
+    headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
+  });
+  const profilesData = await profilesRes.json();
+  if (profilesData && profilesData[0]) posterUserId = profilesData[0].id;
+}
+
+// Get all subscriptions EXCEPT the poster's
+const subsUrl = posterUserId 
+  ? `${supabaseUrl}/rest/v1/push_subscriptions?select=id,subscription&user_id=neq.${posterUserId}`
+  : `${supabaseUrl}/rest/v1/push_subscriptions?select=id,subscription`;
+const subsRes = await fetch(subsUrl, {
+  headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
+});
+const subs = await subsRes.json();
 
     const pushPayload = JSON.stringify({
       title: `${posterName} ${typeLabel} 🌸`,
