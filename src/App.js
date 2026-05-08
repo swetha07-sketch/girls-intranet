@@ -680,7 +680,9 @@ export default function App() {
                     ) : (
                       <span className="card-badge badge-video">{item.itemType === "video" ? "🎥 video" : "📷 photo"}</span>
                     )}
-                    <button className="delete-btn" onClick={() => setDeleteTarget(item)}>🗑️</button>
+                    {item.name === profile?.name && (
+                      <button className="delete-btn" onClick={() => setDeleteTarget(item)}>🗑️</button>
+                    )}
                   </div>
                 </div>
                 {item.itemType === "post" ? (
