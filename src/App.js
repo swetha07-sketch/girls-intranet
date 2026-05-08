@@ -300,17 +300,27 @@ export default function App() {
 
   const handleSignup = async () => {
     if (!email || !password) { setAuthError("Please fill in all fields!"); return; }
-    const verifyRes = await fetch("/api/verify-invite", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ code: inviteCode }),
-});
-const verifyData = await verifyRes.json();
-if (!verifyData.valid) { setAuthError("Invalid invite code 💔"); return; }
     if (password.length < 6) { setAuthError("Password must be at least 6 characters!"); return; }
     setAuthSubmitting(true); setAuthError("");
-    const { error } = await supabase.auth.signUp({ email, password });
-    if (error) { setAuthError(error.message); setAuthSubmitting(false); return; }
+    
+    // Call the secure server-side signup endpoint
+    const res = await fetch("/api/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, code: inviteCode }),
+    });
+    const data = await res.json();
+    
+    if (!data.ok) {
+      setAuthError(data.error || "Something went wrong, try again 💔");
+      setAuthSubmitting(false);
+      return;
+    }
+    
+    // Account created successfully — now log them in
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) { setAuthError("Account created but couldn't auto-login. Try logging in manually!"); }
+    
     setAuthSubmitting(false);
   };
 
