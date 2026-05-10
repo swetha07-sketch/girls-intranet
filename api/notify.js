@@ -1,22 +1,36 @@
 import webpush from "web-push";
 
-webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT || "mailto:2statescorner@gmail.com",
-  process.env.VAPID_PUBLIC_KEY,
-  process.env.VAPID_PRIVATE_KEY
-);
+console.log("=== notify.js loaded ===");
+console.log("VAPID_PUBLIC_KEY exists:", !!process.env.VAPID_PUBLIC_KEY);
+console.log("VAPID_PRIVATE_KEY exists:", !!process.env.VAPID_PRIVATE_KEY);
+console.log("VAPID_SUBJECT:", process.env.VAPID_SUBJECT);
+
+try {
+  webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT || "mailto:2statescorner@gmail.com",
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+  console.log("VAPID setup successful");
+} catch (e) {
+  console.error("VAPID setup FAILED:", e.message);
+}
 
 export default async function handler(req, res) {
+  console.log("=== handler called ===");
+  
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   const { posterName, type, content } = req.body;
-  console.log("Notify called!", { posterName, type, posterEmail: req.body.posterEmail });
+  console.log("Body:", { posterName, type });
 
   const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
   const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
+  console.log("Supabase URL exists:", !!supabaseUrl);
+  console.log("Supabase Key exists:", !!supabaseKey);
 
-  const typeLabel = type === "win" ? "🏆 shared a win"
-    : type === "thought" ? "💭 shared a thought"
+  const typeLabel = type === "win" ? "🏆 shared a win" 
+    : type === "thought" ? "💭 shared a thought" 
     : type === "video" ? "🎥 uploaded a video"
     : type === "photo" ? "📷 uploaded a photo"
     : type === "comment" ? "💬 left a comment"
@@ -39,6 +53,7 @@ export default async function handler(req, res) {
   `;
 
   // Email
+  console.log("Starting email send...");
   let emailResult = null;
   try {
     const resendRes = await fetch("https://api.resend.com/emails", {
@@ -55,31 +70,22 @@ export default async function handler(req, res) {
       }),
     });
     emailResult = await resendRes.json();
+    console.log("Email sent, response:", emailResult);
   } catch (e) {
     emailResult = { error: e.message };
+    console.error("Email error:", e.message);
   }
 
   // Push notifications
+  console.log("Starting push notifications...");
   let pushResult = { sent: 0, failed: 0 };
   try {
-    // Find the poster's user_id so we can exclude their devices
-let posterUserId = null;
-if (posterEmail) {
-  const profilesRes = await fetch(`${supabaseUrl}/rest/v1/profiles?email=eq.${encodeURIComponent(posterEmail)}&select=id`, {
-    headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
-  });
-  const profilesData = await profilesRes.json();
-  if (profilesData && profilesData[0]) posterUserId = profilesData[0].id;
-}
-
-// Get all subscriptions EXCEPT the poster's
-const subsUrl = posterUserId 
-  ? `${supabaseUrl}/rest/v1/push_subscriptions?select=id,subscription&user_id=neq.${posterUserId}`
-  : `${supabaseUrl}/rest/v1/push_subscriptions?select=id,subscription`;
-const subsRes = await fetch(subsUrl, {
-  headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
-});
-const subs = await subsRes.json();
+    console.log("Fetching subscriptions...");
+    const subsRes = await fetch(`${supabaseUrl}/rest/v1/push_subscriptions?select=id,subscription`, {
+      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
+    });
+    const subs = await subsRes.json();
+    console.log(`Found ${subs?.length || 0} push subscriptions`);
 
     const pushPayload = JSON.stringify({
       title: `${posterName} ${typeLabel} 🌸`,
@@ -88,12 +94,14 @@ const subs = await subsRes.json();
     });
 
     for (const s of subs || []) {
+      console.log(`Trying to send push to sub ${s.id}`);
       try {
         await webpush.sendNotification(s.subscription, pushPayload);
         pushResult.sent++;
+        console.log(`Push sent to sub ${s.id}`);
       } catch (err) {
         pushResult.failed++;
-        // Auto-clean expired subscriptions
+        console.error(`Push FAILED for sub ${s.id}:`, err.statusCode, err.message);
         if (err.statusCode === 404 || err.statusCode === 410) {
           await fetch(`${supabaseUrl}/rest/v1/push_subscriptions?id=eq.${s.id}`, {
             method: "DELETE",
@@ -102,9 +110,12 @@ const subs = await subsRes.json();
         }
       }
     }
+    console.log("Push loop complete:", pushResult);
   } catch (e) {
     pushResult.error = e.message;
+    console.error("Push notification error:", e.message);
   }
 
+  console.log("=== handler done ===");
   return res.status(200).json({ ok: true, email: emailResult, push: pushResult });
 }
