@@ -81,9 +81,25 @@ export default async function handler(req, res) {
   let pushResult = { sent: 0, failed: 0 };
   try {
     console.log("Fetching subscriptions...");
-    const subsRes = await fetch(`${supabaseUrl}/rest/v1/push_subscriptions?select=id,subscription`, {
-      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
-    });
+
+// Find the poster's user_id so we can exclude their devices
+let posterUserId = null;
+const posterEmail = req.body.posterEmail;
+if (posterEmail) {
+  const profilesRes = await fetch(`${supabaseUrl}/rest/v1/profiles?email=eq.${encodeURIComponent(posterEmail)}&select=id`, {
+    headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
+  });
+  const profilesData = await profilesRes.json();
+  if (profilesData && profilesData[0]) posterUserId = profilesData[0].id;
+  console.log("Poster user_id:", posterUserId);
+}
+
+const subsUrl = posterUserId 
+  ? `${supabaseUrl}/rest/v1/push_subscriptions?select=id,subscription&user_id=neq.${posterUserId}`
+  : `${supabaseUrl}/rest/v1/push_subscriptions?select=id,subscription`;
+const subsRes = await fetch(subsUrl, {
+  headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
+});
     const subs = await subsRes.json();
     console.log(`Found ${subs?.length || 0} push subscriptions`);
 
