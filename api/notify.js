@@ -10,6 +10,7 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   const { posterName, type, content } = req.body;
+  console.log("Notify called!", { posterName, type, posterEmail: req.body.posterEmail });
 
   const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
   const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
