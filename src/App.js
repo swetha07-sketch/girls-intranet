@@ -236,6 +236,7 @@ export default function App() {
   const [submitting, setSubmitting] = useState(false);
   const [dragging, setDragging] = useState(false);
   const fileInputRef = useRef();
+  const videoInputRef = useRef();
   const [commentsByPost, setCommentsByPost] = useState({});
   const [openComments, setOpenComments] = useState(null); // which item's comments are open
   const [commentText, setCommentText] = useState("");
@@ -479,7 +480,7 @@ export default function App() {
   };
 
   const handleFileInput = f => {
-    if (f && f.type.startsWith("image/")) {
+    if (f && (f.type.startsWith("image/") || f.type.startsWith("video/"))) {
       setPendingFile(f);
       setPendingPreview(URL.createObjectURL(f));
     }
@@ -488,7 +489,7 @@ export default function App() {
     e.preventDefault();
     setDragging(false);
     const f = e.dataTransfer.files[0];
-    if (f && f.type.startsWith("image/")) {
+    if (f && (f.type.startsWith("image/") || f.type.startsWith("video/"))) {
       setPendingFile(f);
       setPendingPreview(URL.createObjectURL(f));
     }
@@ -916,26 +917,48 @@ export default function App() {
             {sheetMode === "upload" && (
               <>
                 <div className="sheet-title">
-                  Upload a photo or video 📸
+                  {pendingPreview ? "Add a caption 💕" : "Share a moment 📸"}
                   <button className="sheet-close" onClick={closeSheet}>✕</button>
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Caption</label>
-                  <textarea className="textarea-field" style={{ minHeight: "70px" }}
-                    placeholder="Add a caption..."
-                    value={videoCaption} onChange={e => setVideoCaption(e.target.value)} />
-                </div>
-                <input ref={fileInputRef} type="file" accept="image/*" className="hidden-input" onChange={e => handleFileInput(e.target.files[0])} />
-                <div className={`upload-zone ${dragging ? "dragging" : ""}`}
-                  onDragOver={e => { e.preventDefault(); setDragging(true); }}
-                  onDragLeave={() => setDragging(false)}
-                  onDrop={handleDrop}
-                  onClick={() => fileInputRef.current.click()}>
-                  <div className="upload-zone-icon">📷</div>
-                  <p className="upload-zone-text"><strong>Choose a photo</strong></p>
-                  <p className="upload-zone-text" style={{ fontSize: "0.78rem", marginTop: "0.3rem" }}>From your library or take a new one</p>
-                </div>
-                <button className="btn-cancel" style={{ width: "100%", marginTop: "0.5rem" }} onClick={closeSheet}>Cancel</button>
+
+                {pendingPreview ? (
+                  <>
+                    {pendingFile?.type.startsWith("video/") ? (
+                      <video src={pendingPreview} controls playsInline style={{ width: "100%", maxHeight: "350px", objectFit: "cover", borderRadius: "16px", marginBottom: "1rem", background: "#000" }} />
+                    ) : (
+                      <img src={pendingPreview} alt="preview" style={{ width: "100%", maxHeight: "350px", objectFit: "cover", borderRadius: "16px", marginBottom: "1rem" }} />
+                    )}
+                    <div className="form-group">
+                      <label className="form-label">Caption (optional)</label>
+                      <textarea className="textarea-field" style={{ minHeight: "70px" }}
+                        placeholder="Add a caption..."
+                        value={videoCaption} onChange={e => setVideoCaption(e.target.value)} />
+                    </div>
+                    <div className="sheet-actions">
+                      <button className="btn-cancel" onClick={cancelUpload}>Retake</button>
+                      <button className="btn-submit" onClick={confirmUpload}>Post {pendingFile?.type.startsWith("video/") ? "video" : "photo"} ✨</button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <input ref={fileInputRef} type="file" accept="image/*" className="hidden-input" onChange={e => handleFileInput(e.target.files[0])} />
+                    <input ref={videoInputRef} type="file" accept="video/*" capture="environment" className="hidden-input" onChange={e => handleFileInput(e.target.files[0])} />
+
+                    <div className="mode-options">
+                      <button className="mode-btn" onClick={() => fileInputRef.current.click()}>
+                        <div className="mode-icon">📷</div>
+                        <div className="mode-label">Photo</div>
+                        <div className="mode-sub">From library or camera</div>
+                      </button>
+                      <button className="mode-btn" onClick={() => videoInputRef.current.click()}>
+                        <div className="mode-icon">🎥</div>
+                        <div className="mode-label">Record video</div>
+                        <div className="mode-sub">Open camera</div>
+                      </button>
+                    </div>
+                    <button className="btn-cancel" style={{ width: "100%", marginTop: "1rem" }} onClick={closeSheet}>Cancel</button>
+                  </>
+                )}
               </>
             )}
           </div>
