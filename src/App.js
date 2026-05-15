@@ -234,7 +234,7 @@ export default function App() {
   const [deleting, setDeleting] = useState(false);
   const [form, setForm] = useState({ content: "", type: "win" });
   const [submitting, setSubmitting] = useState(false);
-  const [dragging, setDragging] = useState(false);
+  const [dragging, setDragging] = useState(false); // eslint-disable-line no-unused-vars
   const fileInputRef = useRef();
   const videoInputRef = useRef();
   const [commentsByPost, setCommentsByPost] = useState({});
@@ -485,6 +485,7 @@ export default function App() {
       setPendingPreview(URL.createObjectURL(f));
     }
   };
+  // eslint-disable-next-line no-unused-vars
   const handleDrop = e => {
     e.preventDefault();
     setDragging(false);
