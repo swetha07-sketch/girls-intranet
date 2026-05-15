@@ -302,7 +302,7 @@ export default function App() {
     if (!email || !password) { setAuthError("Please fill in all fields!"); return; }
     if (password.length < 6) { setAuthError("Password must be at least 6 characters!"); return; }
     setAuthSubmitting(true); setAuthError("");
-    
+
     // Call the secure server-side signup endpoint
     const res = await fetch("/api/signup", {
       method: "POST",
@@ -310,17 +310,17 @@ export default function App() {
       body: JSON.stringify({ email, password, code: inviteCode }),
     });
     const data = await res.json();
-    
+
     if (!data.ok) {
       setAuthError(data.error || "Something went wrong, try again 💔");
       setAuthSubmitting(false);
       return;
     }
-    
+
     // Account created successfully — now log them in
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) { setAuthError("Account created but couldn't auto-login. Try logging in manually!"); }
-    
+
     setAuthSubmitting(false);
   };
 
@@ -473,8 +473,8 @@ export default function App() {
     setDeleting(false); setDeleteTarget(null); loadFeed();
   };
 
-  const handleFileInput = f => { if (f && (f.type.startsWith("video/") || f.type.startsWith("image/"))) uploadMedia(f); };
-  const handleDrop = e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f && (f.type.startsWith("video/") || f.type.startsWith("image/"))) uploadMedia(f); };
+  const handleFileInput = f => { if (f && f.type.startsWith("image/")) uploadMedia(f); };
+  const handleDrop = e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f && f.type.startsWith("image/")) uploadMedia(f); };
 
   const urlBase64ToUint8Array = (base64String) => {
     const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -497,38 +497,38 @@ export default function App() {
     setCommentsByPost(grouped);
   };
 
- const handleCommentSubmit = async (item) => {
-  if (!commentText.trim()) return;
-  setSubmittingComment(true);
-  const commenterName = profile?.name || "Someone";
-  const commentContent = commentText.trim();
-  
-  await supabase.from("comments").insert([{
-    parent_type: item.itemType,
-    parent_id: String(item.id),
-    author_name: commenterName,
-    author_avatar: profile?.avatar || "🌸",
-    content: commentContent,
-  }]);
-  
-  // Send notification about the comment
-  try {
-    await fetch("/api/notify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        posterName: commenterName,
-        type: "comment",
-        content: `💬 commented on ${item.name}'s ${item.itemType}: "${commentContent}"`,
-        posterEmail: user.email,
-      }),
-    });
-  } catch (e) { console.log("Comment notification failed silently", e); }
-  
-  setCommentText("");
-  setSubmittingComment(false);
-  loadComments();
-};
+  const handleCommentSubmit = async (item) => {
+    if (!commentText.trim()) return;
+    setSubmittingComment(true);
+    const commenterName = profile?.name || "Someone";
+    const commentContent = commentText.trim();
+
+    await supabase.from("comments").insert([{
+      parent_type: item.itemType,
+      parent_id: String(item.id),
+      author_name: commenterName,
+      author_avatar: profile?.avatar || "🌸",
+      content: commentContent,
+    }]);
+
+    // Send notification about the comment
+    try {
+      await fetch("/api/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          posterName: commenterName,
+          type: "comment",
+          content: `💬 commented on ${item.name}'s ${item.itemType}: "${commentContent}"`,
+          posterEmail: user.email,
+        }),
+      });
+    } catch (e) { console.log("Comment notification failed silently", e); }
+
+    setCommentText("");
+    setSubmittingComment(false);
+    loadComments();
+  };
 
   const handleDeleteComment = async (id) => {
     await supabase.from("comments").delete().eq("id", id);
@@ -672,7 +672,7 @@ export default function App() {
           <div className="create-avatar">{profile?.avatar || "🌸"}</div>
           <div className="create-placeholder">Share something, {profile?.name?.split(" ")[0] || "girl"}...</div>
           <div className="create-actions">
-            <button className="create-pill" onClick={e => { e.stopPropagation(); openSheet("upload"); }}>📸 Camera</button>
+            <button className="create-pill" onClick={e => { e.stopPropagation(); openSheet("upload"); }}>📷 Photo</button>
           </div>
         </div>
 
@@ -848,9 +848,9 @@ export default function App() {
                     <div className="mode-sub">Win or thought</div>
                   </button>
                   <button className="mode-btn" onClick={() => setSheetMode("upload")}>
-                    <div className="mode-icon">📸</div>
-                    <div className="mode-label">Take photo/video</div>
-                    <div className="mode-sub">Open camera</div>
+                    <div className="mode-icon">📷</div>
+                    <div className="mode-label">Share a photo</div>
+                    <div className="mode-sub">From library or camera</div>
                   </button>
                 </div>
               </>
@@ -858,7 +858,7 @@ export default function App() {
             {sheetMode === "post" && (
               <>
                 <div className="sheet-title">
-                  Capture a moment 📸
+                  Capture/ share a moment 📷
                   <button className="sheet-close" onClick={closeSheet}>✕</button>
                 </div>
                 <div className="form-group">
@@ -894,15 +894,15 @@ export default function App() {
                     placeholder="Add a caption..."
                     value={videoCaption} onChange={e => setVideoCaption(e.target.value)} />
                 </div>
-                <input ref={fileInputRef} type="file" accept="video/*,image/*" capture="environment" className="hidden-input" onChange={e => handleFileInput(e.target.files[0])} />
+                <input ref={fileInputRef} type="file" accept="image/*" className="hidden-input" onChange={e => handleFileInput(e.target.files[0])} />
                 <div className={`upload-zone ${dragging ? "dragging" : ""}`}
                   onDragOver={e => { e.preventDefault(); setDragging(true); }}
                   onDragLeave={() => setDragging(false)}
                   onDrop={handleDrop}
                   onClick={() => fileInputRef.current.click()}>
-                  <div className="upload-zone-icon">📸</div>
-                  <p className="upload-zone-text"><strong>Tap to open camera</strong></p>
-                  <p className="upload-zone-text" style={{ fontSize: "0.78rem", marginTop: "0.3rem" }}>Take a photo or record a video</p>
+                  <div className="upload-zone-icon">📷</div>
+                  <p className="upload-zone-text"><strong>Choose a photo</strong></p>
+                  <p className="upload-zone-text" style={{ fontSize: "0.78rem", marginTop: "0.3rem" }}>From your library or take a new one</p>
                 </div>
                 <button className="btn-cancel" style={{ width: "100%", marginTop: "0.5rem" }} onClick={closeSheet}>Cancel</button>
               </>
