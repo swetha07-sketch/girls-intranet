@@ -920,7 +920,7 @@ export default function App() {
                   <button className="sheet-close" onClick={closeSheet}>✕</button>
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Caption (optional)</label>
+                  <label className="form-label">Caption</label>
                   <textarea className="textarea-field" style={{ minHeight: "70px" }}
                     placeholder="Add a caption..."
                     value={videoCaption} onChange={e => setVideoCaption(e.target.value)} />
