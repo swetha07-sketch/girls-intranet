@@ -241,6 +241,9 @@ export default function App() {
   const [commentText, setCommentText] = useState("");
   const [submittingComment, setSubmittingComment] = useState(false);
 
+  const [pendingFile, setPendingFile] = useState(null);
+  const [pendingPreview, setPendingPreview] = useState(null);
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [inviteCode, setInviteCode] = useState("");
@@ -440,6 +443,8 @@ export default function App() {
   const openSheet = (mode = null) => { setSheetMode(mode); setShowSheet(true); };
   const closeSheet = () => {
     setShowSheet(false);
+    setPendingFile(null);
+    setPendingPreview(null);
     setTimeout(() => { setSheetMode(null); setForm({ content: "", type: "win" }); }, 300);
   };
 
@@ -473,8 +478,21 @@ export default function App() {
     setDeleting(false); setDeleteTarget(null); loadFeed();
   };
 
-  const handleFileInput = f => { if (f && f.type.startsWith("image/")) uploadMedia(f); };
-  const handleDrop = e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f && f.type.startsWith("image/")) uploadMedia(f); };
+  const handleFileInput = f => {
+    if (f && f.type.startsWith("image/")) {
+      setPendingFile(f);
+      setPendingPreview(URL.createObjectURL(f));
+    }
+  };
+  const handleDrop = e => {
+    e.preventDefault();
+    setDragging(false);
+    const f = e.dataTransfer.files[0];
+    if (f && f.type.startsWith("image/")) {
+      setPendingFile(f);
+      setPendingPreview(URL.createObjectURL(f));
+    }
+  };
 
   const urlBase64ToUint8Array = (base64String) => {
     const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -495,6 +513,19 @@ export default function App() {
       grouped[key].push(c);
     });
     setCommentsByPost(grouped);
+  };
+
+  const confirmUpload = () => {
+    if (pendingFile) {
+      uploadMedia(pendingFile);
+      setPendingFile(null);
+      setPendingPreview(null);
+    }
+  };
+
+  const cancelUpload = () => {
+    setPendingFile(null);
+    setPendingPreview(null);
   };
 
   const handleCommentSubmit = async (item) => {
