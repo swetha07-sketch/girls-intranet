@@ -203,6 +203,10 @@ styleTag.textContent = `
 .comment-send-btn:hover { background: var(--rose-dark); }
 .comment-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .comments-empty { text-align: center; padding: 0.8rem 0; font-size: 0.85rem; color: var(--taupe); }
+.comment-media-btn { padding: 0.45rem 0.6rem; background: none; border: 1.5px solid var(--border); border-radius: 999px; cursor: pointer; font-size: 1rem; transition: all 0.15s; flex-shrink: 0; line-height: 1; }
+.comment-media-btn:hover { border-color: var(--rose); background: #fdf0ec; }
+.comment-media-img { width: 100%; max-height: 250px; object-fit: cover; border-radius: 12px; margin-top: 0.4rem; display: block; }
+.comment-media-video { width: 100%; max-height: 250px; border-radius: 12px; margin-top: 0.4rem; display: block; background: #000; }
 
 `;
 document.head.appendChild(styleTag);
@@ -237,10 +241,17 @@ export default function App() {
   const [dragging, setDragging] = useState(false); // eslint-disable-line no-unused-vars
   const fileInputRef = useRef();
   const videoInputRef = useRef();
+  const commentFileInputRef = useRef();
+  const commentVideoInputRef = useRef();
   const [commentsByPost, setCommentsByPost] = useState({});
   const [openComments, setOpenComments] = useState(null); // which item's comments are open
   const [commentText, setCommentText] = useState("");
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [commentMediaModal, setCommentMediaModal] = useState(null);
+  const [commentPendingFile, setCommentPendingFile] = useState(null);
+  const [commentPendingPreview, setCommentPendingPreview] = useState(null);
+  const [commentMediaCaption, setCommentMediaCaption] = useState("");
+  const [uploadingCommentMedia, setUploadingCommentMedia] = useState(false);
 
   const [pendingFile, setPendingFile] = useState(null);
   const [pendingPreview, setPendingPreview] = useState(null);
@@ -568,6 +579,67 @@ export default function App() {
     loadComments();
   };
 
+  const openCommentMediaModal = (item) => {
+    setCommentMediaModal(item);
+    setCommentPendingFile(null);
+    setCommentPendingPreview(null);
+    setCommentMediaCaption("");
+  };
+
+  const closeCommentMediaModal = () => {
+    setCommentMediaModal(null);
+    setCommentPendingFile(null);
+    setCommentPendingPreview(null);
+    setCommentMediaCaption("");
+  };
+
+  const handleCommentFileInput = (f) => {
+    if (f && (f.type.startsWith("image/") || f.type.startsWith("video/"))) {
+      setCommentPendingFile(f);
+      setCommentPendingPreview(URL.createObjectURL(f));
+    }
+  };
+
+  const handleCommentMediaSubmit = async () => {
+    if (!commentPendingFile || !commentMediaModal) return;
+    setUploadingCommentMedia(true);
+    const name = profile?.name || "Someone";
+    const ext = commentPendingFile.name.split(".").pop().toLowerCase();
+    const isImage = commentPendingFile.type.startsWith("image/");
+    const fileName = `comment_${name}_${Date.now()}.${ext}`;
+
+    await supabase.storage.from("videos").upload(fileName, commentPendingFile, { cacheControl: "3600", upsert: false });
+    const mediaUrl = supabase.storage.from("videos").getPublicUrl(fileName).data.publicUrl;
+
+    const item = commentMediaModal;
+    await supabase.from("comments").insert([{
+      parent_type: item.itemType,
+      parent_id: String(item.id),
+      author_name: name,
+      author_avatar: profile?.avatar || "🌸",
+      content: commentMediaCaption.trim(),
+      media_url: mediaUrl,
+      media_type: isImage ? "photo" : "video",
+    }]);
+
+    try {
+      await fetch("/api/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          posterName: name,
+          type: "comment",
+          content: `${isImage ? "📷" : "🎥"} shared a ${isImage ? "photo" : "video"} on ${item.name}'s ${item.itemType}${commentMediaCaption.trim() ? `: "${commentMediaCaption.trim()}"` : ""}`,
+          posterEmail: user.email,
+        }),
+      });
+    } catch (e) { console.log("Comment media notification failed silently", e); }
+
+    setUploadingCommentMedia(false);
+    closeCommentMediaModal();
+    loadComments();
+  };
+
   const uploadMedia = async (file) => {
     const name = profile?.name || "Someone";
     const ext = file.name.split(".").pop().toLowerCase();
@@ -784,6 +856,13 @@ export default function App() {
                               </div>
                             </div>
                             <div className="comment-content">{c.content}</div>
+                            {c.media_url && (
+                              c.media_type === "video" ? (
+                                <video className="comment-media-video" src={c.media_url} controls playsInline />
+                              ) : (
+                                <img className="comment-media-img" src={c.media_url} alt={c.content || "photo"} />
+                              )
+                            )}
                           </div>
                         </div>
                       ))
@@ -794,6 +873,7 @@ export default function App() {
                         value={commentText}
                         onChange={e => setCommentText(e.target.value)}
                         onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleCommentSubmit(item); } }} />
+                      <button className="comment-media-btn" onClick={() => openCommentMediaModal(item)} title="Add photo/video">📷</button>
                       <button className="comment-send-btn" onClick={() => handleCommentSubmit(item)} disabled={!commentText.trim() || submittingComment}>
                         Post
                       </button>
@@ -860,6 +940,58 @@ export default function App() {
                 {savingSettings ? "Saving…" : "Save changes 💕"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {commentMediaModal && (
+        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && closeCommentMediaModal()}>
+          <div className="sheet">
+            <div className="sheet-handle" />
+            <div className="sheet-title">
+              {commentPendingPreview ? "Add a caption 💕" : "Share a moment 📸"}
+              <button className="sheet-close" onClick={closeCommentMediaModal}>✕</button>
+            </div>
+
+            {commentPendingPreview ? (
+              <>
+                {commentPendingFile?.type.startsWith("video/") ? (
+                  <video src={commentPendingPreview} controls playsInline style={{ width: "100%", maxHeight: "350px", objectFit: "cover", borderRadius: "16px", marginBottom: "1rem", background: "#000" }} />
+                ) : (
+                  <img src={commentPendingPreview} alt="preview" style={{ width: "100%", maxHeight: "350px", objectFit: "cover", borderRadius: "16px", marginBottom: "1rem" }} />
+                )}
+                <div className="form-group">
+                  <label className="form-label">Caption (optional)</label>
+                  <textarea className="textarea-field" style={{ minHeight: "70px" }}
+                    placeholder="Add a caption..."
+                    value={commentMediaCaption} onChange={e => setCommentMediaCaption(e.target.value)} />
+                </div>
+                <div className="sheet-actions">
+                  <button className="btn-cancel" onClick={() => { setCommentPendingFile(null); setCommentPendingPreview(null); }}>Retake</button>
+                  <button className="btn-submit" onClick={handleCommentMediaSubmit} disabled={uploadingCommentMedia}>
+                    {uploadingCommentMedia ? "Posting…" : `Post ${commentPendingFile?.type.startsWith("video/") ? "video" : "photo"} ✨`}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <input ref={commentFileInputRef} type="file" accept="image/*" className="hidden-input" onChange={e => handleCommentFileInput(e.target.files[0])} />
+                <input ref={commentVideoInputRef} type="file" accept="video/*" capture="environment" className="hidden-input" onChange={e => handleCommentFileInput(e.target.files[0])} />
+                <div className="mode-options">
+                  <button className="mode-btn" onClick={() => commentFileInputRef.current.click()}>
+                    <div className="mode-icon">📷</div>
+                    <div className="mode-label">Photo</div>
+                    <div className="mode-sub">From library or camera</div>
+                  </button>
+                  <button className="mode-btn" onClick={() => commentVideoInputRef.current.click()}>
+                    <div className="mode-icon">🎥</div>
+                    <div className="mode-label">Record video</div>
+                    <div className="mode-sub">Open camera</div>
+                  </button>
+                </div>
+                <button className="btn-cancel" style={{ width: "100%", marginTop: "1rem" }} onClick={closeCommentMediaModal}>Cancel</button>
+              </>
+            )}
           </div>
         </div>
       )}
