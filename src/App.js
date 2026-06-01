@@ -418,7 +418,12 @@ export default function App() {
       .map(f => {
         const uploaderName = f.name.split("_")[0];
         const ext = f.name.split(".").pop().toLowerCase();
-        const isImage = ["jpg", "jpeg", "png", "gif", "webp", "heic"].includes(ext);
+        // Prefer the type embedded in the filename (e.g. Name_ts_photo.jpg) so MIME-detected
+        // type at upload time takes precedence over extension guessing.
+        const typeTag = f.name.match(/_(photo|video)\.[^.]+$/);
+        const isImage = typeTag
+          ? typeTag[1] === "photo"
+          : ["jpg", "jpeg", "png", "gif", "webp", "heic", "heif", "avif", "bmp", "tiff", "tif", "jfif"].includes(ext);
         return {
           id: f.id,
           itemType: isImage ? "photo" : "video",
@@ -644,7 +649,10 @@ export default function App() {
     const name = profile?.name || "Someone";
     const ext = file.name.split(".").pop().toLowerCase();
     const isImage = file.type.startsWith("image/");
-    const fileName = `${name}_${Date.now()}.${ext}`;
+    // Embed the type tag in the filename so the feed loader can use MIME-detected
+    // type rather than guessing from extension (fixes photos with unusual extensions).
+    const typeTag = isImage ? "photo" : "video";
+    const fileName = `${name}_${Date.now()}_${typeTag}.${ext}`;
     const captionToSave = videoCaption.trim();
     closeSheet();
     setUploadProgress(0);
