@@ -414,7 +414,7 @@ export default function App() {
     (allCaptions || []).forEach(c => { captionMap[c.file_name] = c.caption; });
 
     const freshMedia = (files || [])
-      .filter(f => f.name !== ".emptyFolderPlaceholder" && new Date(f.created_at) >= new Date(sevenDaysAgo))
+      .filter(f => f.name !== ".emptyFolderPlaceholder" && !f.name.startsWith("comment_") && new Date(f.created_at) >= new Date(sevenDaysAgo))
       .map(f => {
         const uploaderName = f.name.split("_")[0];
         const ext = f.name.split(".").pop().toLowerCase();
