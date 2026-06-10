@@ -27,6 +27,17 @@ const expiresIn = (ts) => {
   return `${Math.floor(h / 24)}d left`;
 };
 
+const getSeenKey = (userId) => `seen_v2_${userId}`;
+const loadSeenFromStorage = (userId) => {
+  try {
+    const raw = localStorage.getItem(getSeenKey(userId));
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch { return new Set(); }
+};
+const saveSeenToStorage = (userId, seenSet) => {
+  try { localStorage.setItem(getSeenKey(userId), JSON.stringify([...seenSet])); } catch {}
+};
+
 const AVATAR_EMOJIS = ["🌸", "🌺", "🦋", "🌙", "⭐", "🌈", "🍓", "🌻", "🦄", "💫", "🌷", "🍒"];
 
 const styleTag = document.createElement("style");
@@ -208,6 +219,19 @@ styleTag.textContent = `
 .comment-media-img { width: 100%; max-height: 250px; object-fit: cover; border-radius: 12px; margin-top: 0.4rem; display: block; }
 .comment-media-video { width: 100%; max-height: 250px; border-radius: 12px; margin-top: 0.4rem; display: block; background: #000; }
 
+  /* Bottom nav */
+  .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-top: 1px solid var(--border); display: flex; z-index: 200; padding-bottom: env(safe-area-inset-bottom); box-shadow: 0 -1px 12px rgba(90,50,30,0.06); }
+  .nav-tab { flex: 1; padding: 0.8rem 0.5rem 0.9rem; display: flex; flex-direction: column; align-items: center; gap: 0.2rem; background: none; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; color: var(--taupe); transition: color 0.15s; position: relative; }
+  .nav-tab.active { color: var(--rose); }
+  .nav-tab-icon { font-size: 1.35rem; line-height: 1; }
+  .nav-tab-label { font-size: 0.68rem; font-weight: 500; letter-spacing: 0.02em; }
+  .nav-badge { position: absolute; top: 0.5rem; left: calc(50% + 6px); background: var(--rose); color: white; font-size: 0.6rem; font-weight: 700; min-width: 15px; height: 15px; border-radius: 999px; display: flex; align-items: center; justify-content: center; padding: 0 3px; line-height: 1; }
+  /* Notifications tab */
+  .notif-page-title { font-family: 'Playfair Display', serif; font-size: 1.5rem; color: var(--brown); margin-bottom: 1.5rem; }
+  .notif-section-label { font-size: 0.78rem; font-weight: 500; color: var(--taupe); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--border); }
+  .notif-comment-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 0.85rem 1.1rem; display: flex; gap: 0.65rem; align-items: flex-start; box-shadow: var(--shadow); margin-bottom: 0.6rem; animation: cardIn 0.3s ease; }
+  .notif-comment-meta { font-size: 0.77rem; color: var(--taupe); margin-top: 0.3rem; }
+
 `;
 document.head.appendChild(styleTag);
 
@@ -266,6 +290,10 @@ export default function App() {
     typeof Notification !== "undefined" ? Notification.permission : "default"
   );
 
+  const [activeTab, setActiveTab] = useState("feed");
+  const [seenItemIds, setSeenItemIds] = useState(new Set());
+  const [notifSnapshot, setNotifSnapshot] = useState({ posts: [], comments: [] });
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -278,7 +306,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (user) { loadProfile(); loadFeed(); loadComments(); }
+    if (user) { loadProfile(); loadFeed(); loadComments(); setSeenItemIds(loadSeenFromStorage(user.id)); }
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -533,6 +561,25 @@ export default function App() {
     setCommentsByPost(grouped);
   };
 
+  const handleSwitchToNotifications = () => {
+    const newPosts = feed.filter(item =>
+      !seenItemIds.has(`${item.itemType}-${item.id}`) && item.name !== profile?.name
+    );
+    const allC = Object.values(commentsByPost).flat();
+    const newComments = allC.filter(c =>
+      !seenItemIds.has(`comment-${c.id}`) && c.author_name !== profile?.name
+    );
+    setNotifSnapshot({ posts: newPosts, comments: newComments });
+    setActiveTab("notifications");
+    if (newPosts.length > 0 || newComments.length > 0) {
+      const updated = new Set(seenItemIds);
+      newPosts.forEach(item => updated.add(`${item.itemType}-${item.id}`));
+      newComments.forEach(c => updated.add(`comment-${c.id}`));
+      setSeenItemIds(updated);
+      if (user) saveSeenToStorage(user.id, updated);
+    }
+  };
+
   const confirmUpload = () => {
     if (pendingFile) {
       uploadMedia(pendingFile);
@@ -755,6 +802,10 @@ export default function App() {
     </div>
   );
 
+  const unseenCount = !profile ? 0 :
+    feed.filter(item => !seenItemIds.has(`${item.itemType}-${item.id}`) && item.name !== profile.name).length +
+    Object.values(commentsByPost).flat().filter(c => !seenItemIds.has(`comment-${c.id}`) && c.author_name !== profile.name).length;
+
   return (
     <div className="app-root">
       <header className="header">
@@ -781,32 +832,34 @@ export default function App() {
       </header>
 
       <main className="main">
-        <div className="create-bar" onClick={() => openSheet()}>
-          <div className="create-avatar">{profile?.avatar || "🌸"}</div>
-          <div className="create-placeholder">Share something, {profile?.name?.split(" ")[0] || "girl"}...</div>
-          <div className="create-actions">
-            <button className="create-pill" onClick={e => { e.stopPropagation(); openSheet("upload"); }}>📷 Photo</button>
-          </div>
-        </div>
+        {activeTab === "feed" && (
+          <>
+            <div className="create-bar" onClick={() => openSheet()}>
+              <div className="create-avatar">{profile?.avatar || "🌸"}</div>
+              <div className="create-placeholder">Share something, {profile?.name?.split(" ")[0] || "girl"}...</div>
+              <div className="create-actions">
+                <button className="create-pill" onClick={e => { e.stopPropagation(); openSheet("upload"); }}>📷 Photo</button>
+              </div>
+            </div>
 
-        {uploadProgress !== null && (
-          <div className="upload-progress">
-            <span style={{ fontSize: "1.1rem" }}>⬆️</span>
-            <div className="progress-bar-wrap"><div className="progress-bar" style={{ width: `${uploadProgress}%` }} /></div>
-            <span className="progress-text">{uploadProgress < 100 ? `${Math.round(uploadProgress)}%` : "Posted! 🎉"}</span>
-          </div>
-        )}
+            {uploadProgress !== null && (
+              <div className="upload-progress">
+                <span style={{ fontSize: "1.1rem" }}>⬆️</span>
+                <div className="progress-bar-wrap"><div className="progress-bar" style={{ width: `${uploadProgress}%` }} /></div>
+                <span className="progress-text">{uploadProgress < 100 ? `${Math.round(uploadProgress)}%` : "Posted! 🎉"}</span>
+              </div>
+            )}
 
-        {loadingFeed ? (
-          <div className="empty-state"><div className="empty-icon">⏳</div><p className="empty-text">Loading…</p></div>
-        ) : feed.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">🌷</div>
-            <p className="empty-text">Nothing yet this week! Be the first to post something ✨</p>
-          </div>
-        ) : (
-          <div className="feed">
-            {feed.map(item => (
+            {loadingFeed ? (
+              <div className="empty-state"><div className="empty-icon">⏳</div><p className="empty-text">Loading…</p></div>
+            ) : feed.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon">🌷</div>
+                <p className="empty-text">Nothing yet this week! Be the first to post something ✨</p>
+              </div>
+            ) : (
+              <div className="feed">
+                {feed.map(item => (
               <div className="feed-card" key={`${item.itemType}-${item.id}`}>
                 <div className="card-header">
                   <div className="card-author">
@@ -893,13 +946,122 @@ export default function App() {
                     💬 {(commentsByPost[`${item.itemType}-${item.id}`] || []).length} {(commentsByPost[`${item.itemType}-${item.id}`] || []).length === 1 ? "comment" : "comments"}
                   </button>
                 </div>
+                </div>
+              ))}
+            </div>
+          )}
+          </>
+        )}
+
+        {activeTab === "notifications" && (
+          <div>
+            <p className="notif-page-title">What's new ✨</p>
+            {notifSnapshot.posts.length === 0 && notifSnapshot.comments.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon">✨</div>
+                <p className="empty-text">You're all caught up!<br />Check back later for new posts and comments.</p>
               </div>
-            ))}
+            ) : (
+              <>
+                {notifSnapshot.posts.length > 0 && (
+                  <>
+                    <p className="notif-section-label">New posts ({notifSnapshot.posts.length})</p>
+                    <div className="feed">
+                      {notifSnapshot.posts.map(item => (
+                        <div className="feed-card" key={`notif-${item.itemType}-${item.id}`}>
+                          <div className="card-header">
+                            <div className="card-author">
+                              <div className="avatar">{item.avatar || "🌸"}</div>
+                              <div>
+                                <div className="author-name">{item.name}</div>
+                                <div className="post-time">{timeAgo(item.created_at)}</div>
+                              </div>
+                            </div>
+                            <div className="card-right">
+                              {item.itemType === "post" ? (
+                                <span className={`card-badge ${item.type === "win" ? "badge-win" : "badge-thought"}`}>
+                                  {item.type === "win" ? "🏆 win" : "💭 thought"}
+                                </span>
+                              ) : (
+                                <span className="card-badge badge-video">{item.itemType === "video" ? "🎥 video" : "📷 photo"}</span>
+                              )}
+                            </div>
+                          </div>
+                          {item.itemType === "post" ? (
+                            <div className="card-content">{item.content}</div>
+                          ) : (
+                            <>
+                              {item.caption && <div className="card-content" style={{ paddingBottom: "0.6rem" }}>{item.caption}</div>}
+                              {item.itemType === "video" ? (
+                                <video className="card-video" src={item.url} controls preload="metadata" playsInline />
+                              ) : (
+                                <img className="card-video" src={item.url} alt={item.caption || "photo"} style={{ objectFit: "cover" }} />
+                              )}
+                              <div className="card-video-footer">
+                                <span className="video-expiry-tag">⏳ {expiresIn(item.created_at)}</span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+                {notifSnapshot.comments.length > 0 && (
+                  <>
+                    <p className="notif-section-label" style={{ marginTop: notifSnapshot.posts.length > 0 ? "1.5rem" : "0" }}>
+                      New comments ({notifSnapshot.comments.length})
+                    </p>
+                    {notifSnapshot.comments.map(c => {
+                      const parentItem = feed.find(item =>
+                        item.itemType === c.parent_type && String(item.id) === c.parent_id
+                      );
+                      return (
+                        <div className="notif-comment-card" key={`notif-comment-${c.id}`}>
+                          <div className="comment-avatar">{c.author_avatar}</div>
+                          <div style={{ flex: 1 }}>
+                            <div className="comment-header">
+                              <span className="comment-author">{c.author_name}</span>
+                              <span className="comment-time">{timeAgo(c.created_at)}</span>
+                            </div>
+                            {c.content && <div className="comment-content">{c.content}</div>}
+                            {c.media_url && (
+                              c.media_type === "video" ? (
+                                <video className="comment-media-video" src={c.media_url} controls playsInline />
+                              ) : (
+                                <img className="comment-media-img" src={c.media_url} alt={c.content || "photo"} />
+                              )
+                            )}
+                            <div className="notif-comment-meta">
+                              💬 on {parentItem ? `${parentItem.name}'s ${c.parent_type}` : `a ${c.parent_type}`}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
+              </>
+            )}
           </div>
         )}
       </main>
 
-      <button className="fab" onClick={() => openSheet()}>+ Create post</button>
+      <nav className="bottom-nav">
+        <button className={`nav-tab ${activeTab === "feed" ? "active" : ""}`} onClick={() => setActiveTab("feed")}>
+          <span className="nav-tab-icon">🏠</span>
+          <span className="nav-tab-label">Feed</span>
+        </button>
+        <button className="nav-tab" onClick={() => openSheet()}>
+          <span className="nav-tab-icon">✏️</span>
+          <span className="nav-tab-label">Create</span>
+        </button>
+        <button className={`nav-tab ${activeTab === "notifications" ? "active" : ""}`} onClick={handleSwitchToNotifications}>
+          <span className="nav-tab-icon">🔔</span>
+          <span className="nav-tab-label">New</span>
+          {unseenCount > 0 && <span className="nav-badge">{unseenCount > 9 ? "9+" : unseenCount}</span>}
+        </button>
+      </nav>
 
       {deleteTarget && (
         <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setDeleteTarget(null)}>
